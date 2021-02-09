@@ -1,0 +1,58 @@
+dist: xenial
+
+notifications:
+  email: false
+
+branches:
+  only:
+    - master
+
+language: cpp
+compiler: gcc
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - g++-9
+  sonarcloud:
+    organization: "antnolang"
+    token: "$SONAR_TOKEN"
+
+env:
+  - CC=gcc-9 CXX=g++-9 PATH="/home/travis/build/antnolang/CronuSwim/arduino-cli:/opt/python/3.7.1/bin:$PATH"
+
+install:
+
+  # Arduino dependencies
+  - mkdir arduino-cli
+  - curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR=./arduino-cli sh
+  - arduino-cli core install arduino:mbed
+  - arduino-cli lib install Arduino_LSM9DS1
+  
+  # Catch2 dependencies
+  - rm -f test/catch.hpp
+  - >
+     wget -nv -P test/ 
+     https://github.com/catchorg/Catch2/releases/download/v2.13.4/catch.hpp
+
+  # Emlearn dependencies
+  - python3 -m pip install --user emlearn
+     
+script:
+  - export PROJECT_NAME="$(make project_name)"
+  - export NEXT_VERSION="$(./next_version.sh)"
+  - build-wrapper-linux-x86-64 --out-dir bw-dir make compile test
+  - >
+     sonar-scanner 
+     -Dsonar.projectKey=antnolang_$PROJECT_NAME 
+     -Dsonar.projectName=$PROJECT_NAME 
+     -Dsonar.projectVersion=$NEXT_VERSION 
+     -Dsonar.links.ci=https://travis-ci.org/github/antnolang/$PROJECT_NAME 
+     -Dsonar.links.scm=https://github.com/antnolang/$PROJECT_NAME
+after_success:
+  - git config --local user.name "$USER_GIT"
+  - git config --local user.email "$EMAIL_GIT"
+  - git tag -a "$NEXT_VERSION" -m "Version $NEXT_VERSION"
+  - git push https://$GH_TOKEN@github.com/antnolang/$PROJECT_NAME.git/ "$NEXT_VERSION"
