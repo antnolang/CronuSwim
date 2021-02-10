@@ -131,7 +131,7 @@ double estimate_time(
     const std::vector<movement> &windows, const std::vector<double> &timestamps
 ) {
 	const int length = windows.size();
-	int last_start_pos = -1, first_finish_pos = -1;
+	int last_start_pos = -1, first_finish_pos = -1, i;
 	double result;
 
 	// looking for the last start and the first finish
@@ -150,13 +150,19 @@ double estimate_time(
 	} else {
 		// looking for consecutive starts
 		int consctv_starts = 1;
-		for (int i = last_start_pos - 1; i >= 0 && windows[i] == START; i--)
-			consctv_starts++;
+		
+		i = last_start_pos - 1;
+		while (i >= 0 && windows[i] == START) {
+			consctv_starts++; i--;
+		}
 
 		// looking for consecutive finishes
 		int consctv_finishes = 1;
-		for (int i = first_finish_pos + 1; i < length && windows[i] == FINISH; i++)
-			consctv_finishes++;
+
+		i = first_finish_pos + 1;
+		while (i < length && windows[i] == FINISH) {
+			consctv_finishes++; i++;
+		}
 
 		// average timestamps for starts
 		const double * p_data, * p_timestamps = timestamps.data();

@@ -3,8 +3,26 @@
 #include "stats.hpp"
 
 
-const double margin_error = 0.0000001;
 
+static void stats_check(
+    const double * data, const int size, const double stats[7]
+) {
+	const double me = 0.0000001;
+	double stats_min, stats_max;
+	const double mean = stats[0], var = stats[1], sd = stats[2], 
+		     kurt = stats[3], skew = stats[4], min = stats[5], 
+		     max = stats[6];
+
+	CHECK(stats_mean(data, size) == Approx(mean).margin(me));
+	CHECK(stats_variance(data, size, mean) == Approx(var).margin(me));
+	CHECK(stats_sd(var) == Approx(sd).margin(me));
+	CHECK(stats_kurtosis(data, size, mean, sd) == Approx(kurt).margin(me));
+	CHECK(stats_skew(data, size, mean, sd) == Approx(skew).margin(me));
+
+	stats_min_max(stats_min, stats_max, data, size);
+	CHECK(stats_min == Approx(min).margin(me));
+	CHECK(stats_max == Approx(max).margin(me));
+}
 
 TEST_CASE("stats from subset of data", "[stats]") {
 	// Random data generated from https://codinglab.huostravelblog.com/programming/random-number-generator/index.php
@@ -12,37 +30,23 @@ TEST_CASE("stats from subset of data", "[stats]") {
 
 	SECTION("subset [10,50)") {
 		const double * data = testing_data + 10;
-		const size_t size = 40;
-		const double mean = -267.8351243575, var = 1051151.1960538,
-			     sd = 1025.2566488708;
-		double min, max;
+		const int size = 40;
+		// mean, var, sd, kurt, skew, min, max
+		const double stats[7] = {-267.8351243575, 1051151.1960538, 
+			1025.2566488708, -0.667603486532236, 0.26269141940770846, 
+			-1985.959844, 1992.6278992};
 
-		CHECK(stats_mean(data, size) == Approx(mean).margin(margin_error));
-		CHECK(stats_variance(data, size, mean) == Approx(var).margin(margin_error));
-		CHECK(stats_sd(var) == Approx(sd).margin(margin_error));
-		CHECK(stats_kurtosis(data, size, mean, sd) == Approx(-0.667603486532236).margin(margin_error));
-		CHECK(stats_skew(data, size, mean, sd) == Approx(0.26269141940770846).margin(margin_error));
-
-		stats_min_max(min, max, data, size);
-		CHECK(min == Approx(-1985.959844).margin(margin_error));
-		CHECK(max == Approx(1992.6278992).margin(margin_error));
+		stats_check(data, size, stats);
 	}
 	SECTION("subset [67,100)") {
 		const double * data = testing_data + 67;
-		const size_t size = 33;
-		const double mean = 48.431272466667, var = 893650.99054591, 
-			     sd = 945.33115390635;
-		double min, max;
+		const int size = 33;
+		// mean, var, sd, kurt, skew, min, max
+		const double stats[7] = {48.431272466667, 893650.99054591, 
+			945.33115390635, -0.6591495084927934, 
+			-0.10769088031586398, -1876.1631488, 1847.2883571};
 
-		CHECK(stats_mean(data, size) == Approx(mean).margin(margin_error));
-		CHECK(stats_variance(data, size, mean) == Approx(var).margin(margin_error));
-		CHECK(stats_sd(var) == Approx(sd).margin(margin_error));
-		CHECK(stats_kurtosis(data, size, mean, sd) == Approx(-0.6591495084927934).margin(margin_error));
-		CHECK(stats_skew(data, size, mean, sd) == Approx(-0.10769088031586398).margin(margin_error));
-
-		stats_min_max(min, max, data, size);
-		CHECK(min == Approx(-1876.1631488).margin(margin_error));
-		CHECK(max == Approx(1847.2883571).margin(margin_error));
+		stats_check(data, size, stats);
 	}
 }
 

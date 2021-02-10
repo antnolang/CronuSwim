@@ -1,3 +1,4 @@
+
 #ifndef _PROCESS_DATA_H_
 #define _PROCESS_DATA_H_
 
@@ -7,8 +8,11 @@
 
 #include "stats.hpp"
 
+
 enum movement { START, OTHER, FINISH };
 enum sensor_3D { ACCEL = 1, GYROS = 4 };
+
+
 
 double process_data(std::vector<double> imu_data[7]);
 void extract_features(
@@ -24,3 +28,4 @@ double estimate_time(
 
 
 #endif
+

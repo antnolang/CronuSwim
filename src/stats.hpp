@@ -1,7 +1,10 @@
+
 #ifndef _STATS_H_
 #define _STATS_H_
 
+
 #include <cmath>
+
 
 
 double stats_mean(const double data[], const size_t size);
@@ -19,3 +22,4 @@ void stats_min_max(
 
 
 #endif
+
