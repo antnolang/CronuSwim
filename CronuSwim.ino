@@ -6,7 +6,7 @@
 
 
 std::vector<double> imu_data[7];
-char status;
+char event_button;
 
 
 
@@ -19,19 +19,24 @@ void setup() {
 		while (1);
 	}
 
+	event_button = 'W';
 	Serial.println("Waiting for reading signal:");
 }
 
 
 void loop() {
-	status = 'W';
+	read_button_input();
 
-	read_status_input();
-
-	if (status == 'R') {
+	if (event_button == 'P') {
 		Serial.println("Reading IMU data ...");
-		read_imu_data();
-	} else if (status == 'P') {
+
+		event_button = 'W';
+		while(event_button == 'W') {
+			read_imu_data();
+			read_button_input();
+		}
+
+
 		Serial.println("Processing data ...");
 
 		double estimation = process_data(imu_data);
@@ -42,9 +47,10 @@ void loop() {
 			Serial.println("ERROR: Swimming event not completed");
 		}
 			
-		status = 'W';
+		event_button = 'W';
 		for (int i = 0; i < 7; i++)
 			imu_data[i].clear();
+
 
 		Serial.println("Waiting for reading signal:");
 	}
@@ -52,7 +58,7 @@ void loop() {
 
 
 
-void read_status_input() {
+void read_button_input() {
 	String in_data = "";
 
 	while (Serial.available() > 0) {
@@ -60,7 +66,7 @@ void read_status_input() {
 		in_data += recieved;
 
 		if (recieved == '\n') {
-			status = in_data[0];
+			event_button = in_data[0];
 			break;
 		}
 	}
