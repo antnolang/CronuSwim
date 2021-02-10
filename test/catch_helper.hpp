@@ -10,7 +10,9 @@
 
 
 
-double read_data_from_csv(std::vector<double> imu_data[7], std::string filename);
+double read_data_from_csv(
+    std::vector<double> imu_data[7], const std::string filename
+);
 
 
 #endif

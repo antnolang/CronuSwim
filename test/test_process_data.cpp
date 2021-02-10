@@ -8,13 +8,13 @@
 
 
 TEST_CASE("extract_stats_from_sensor using event27.csv", "[process_data],[static]") {
-	const float me = 0.0000001;
-	const int feats_sensor_count = 21;
+	constexpr float me = 0.0000001;
+	constexpr int feats_sensor_count = 21;
 	std::vector<double> imu_data[7];
 	float features[feats_sensor_count];
 	sensor_3D sensor = GENERATE(ACCEL, GYROS);
 	int first_pos = GENERATE(0, 59); // w_size = 70
-	const float expected_res[2][2][feats_sensor_count] = { // TODO: detail expected data using comments
+	constexpr float expected_res[2][2][feats_sensor_count] = { // TODO: detail expected data using comments
 		-0.042571428571429, -0.55227142857143, -0.84475714285714, 0.0085916428307173, 0.0091463051534108, 0.0050665167359398, 0.000073816326530616, 0.000083654897959308, 0.000025669591835558, -0.069, -0.580, -0.857, -0.027, -0.537, -0.835, 0.8826789660749395, 0.563486000435029, -0.6289091800652478, -0.8224259442845651, -0.9375635402876765, -0.45971082883459685,
 		-0.034742857142857, -0.56345714285714, -0.8379, 0.0086663317570036, 0.011566806837162, 0.0088964679989436, 0.000075105306122449, 0.00013379102040822, 0.000079147142856227, -0.055, -0.589, -0.855, -0.018, -0.532, -0.820, -0.6349873741886602, 0.3321879782556616, -0.994875225964436, -0.1457982203222088, 0.06111678783540695, 0.17019665034162287,
 		-1.5973142857143, 0.42201428571429, -0.77087142857143, 0.7256668173452, 0.85610552575281, 0.9823307403667, 0.52659232979592, 0.73291667122449, 0.96497368346939, -2.869, -2.136, -3.052, -0.061, 1.953, 0.854, -0.7490513065291156, 1.0112479704644457, -0.4723143922086641, 0.25161425088606093, -0.828537796196954, -0.4854193239006291,
@@ -39,10 +39,10 @@ TEST_CASE("extract_stats_from_sensor using event27.csv", "[process_data],[static
 
 
 TEST_CASE("extract_features using event27.csv", "[process_data],[static]") {
-	const float me = 0.0000001;
+	constexpr float me = 0.0000001;
 	float features[43];
 	std::vector<double> imu_data[7];
-	const float expected_res[2][2][21] = { // TODO: detail expected data using comments
+	constexpr float expected_res[2][2][21] = { // TODO: detail expected data using comments
 		-0.042571428571429, -0.55227142857143, -0.84475714285714, 0.0085916428307173, 0.0091463051534108, 0.0050665167359398, 0.000073816326530616, 0.000083654897959308, 0.000025669591835558, -0.069, -0.580, -0.857, -0.027, -0.537, -0.835, 0.8826789660749395, 0.563486000435029, -0.6289091800652478, -0.8224259442845651, -0.9375635402876765, -0.45971082883459685,
 		-0.034742857142857, -0.56345714285714, -0.8379, 0.0086663317570036, 0.011566806837162, 0.0088964679989436, 0.000075105306122449, 0.00013379102040822, 0.000079147142856227, -0.055, -0.589, -0.855, -0.018, -0.532, -0.820, -0.6349873741886602, 0.3321879782556616, -0.994875225964436, -0.1457982203222088, 0.06111678783540695, 0.17019665034162287,
 		-1.5973142857143, 0.42201428571429, -0.77087142857143, 0.7256668173452, 0.85610552575281, 0.9823307403667, 0.52659232979592, 0.73291667122449, 0.96497368346939, -2.869, -2.136, -3.052, -0.061, 1.953, 0.854, -0.7490513065291156, 1.0112479704644457, -0.4723143922086641, 0.25161425088606093, -0.828537796196954, -0.4854193239006291,
@@ -81,7 +81,7 @@ TEST_CASE("extract_features using event27.csv", "[process_data],[static]") {
 
 
 TEST_CASE("estimate_time", "[process_data],[static]") {
-	const float me = 0.0000001;
+	constexpr float me = 0.0000001;
 
 	// timestamps generated randomly from https://onlinenumbertools.com/generate-random-numbers
 	// and sorted with https://onlinenumbertools.com/sort-numbers
@@ -169,7 +169,7 @@ TEST_CASE("estimate_time", "[process_data],[static]") {
 TEST_CASE("process_data: expected <5 percentage of failures", "[process_data]") {
 	int success_count = 0;
 	int fail_count = 0;
-	const int test_file_count = 60;
+	constexpr int test_file_count = 60;
 
 	for (int i = 1; i <= test_file_count; i++) {
 		std::vector<double> imu_data[7];

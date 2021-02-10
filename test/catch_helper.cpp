@@ -3,7 +3,9 @@
 
 
 
-double read_data_from_csv(std::vector<double> imu_data[7], std::string filename) {
+double read_data_from_csv(
+    std::vector<double> imu_data[7], const std::string filename
+) {
 	double expected_duration;
 	std::string str, number;
 	std::vector<double> start_end;

@@ -3,16 +3,16 @@
 #include "trained_model.h" // it's a header file only: can only be imported once
 
 
-const int feats_count = 43; // average timestamp, 21 accel stats, 21 gyros stats
-const int feats_sensor_count = (feats_count - 1) / 2;
-const float overlap_factor = 0.25; // window data overlap between them by a factor of 0.25
-const int w_size = 70;
-const int w_offset = round(w_size*(1.0 - overlap_factor));
+constexpr int w_size = 70;
+constexpr float overlap_factor = 0.25; // window data overlap between them by a factor of 0.25
+constexpr int feats_count = 43; // average timestamp, 21 accel stats, 21 gyros stats
+constexpr int feats_sensor_count = (feats_count - 1) / 2;
 
 
 
 double process_data(std::vector<double> imu_data[7]) {
 	const int data_size = imu_data[0].size();
+	constexpr int w_offset = round(w_size*(1.0 - overlap_factor));
 	// const int w_count = floor( (data_size - w_size) / 
 	//			      (w_size * overlap_factor) ) + 1;
 	movement w_class;
@@ -44,7 +44,7 @@ void extract_features(
     float features[], const std::vector<double> imu_data[7], const int first_pos
 ) {
 	const double * time_data = imu_data[0].data();
-	int p_offset = feats_sensor_count + 1;
+	constexpr int p_offset = feats_sensor_count + 1;
 
 	features[0] = stats_mean(time_data + first_pos, w_size);
 	extract_stats_from_sensor(features + 1, ACCEL, imu_data, first_pos);
