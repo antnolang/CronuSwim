@@ -7,7 +7,7 @@
 
 
 
-TEST_CASE("extract_stats_from_sensor using event27.csv", "[process_data],[static]") {
+TEST_CASE("extract_stats_from_sensor using event27.csv", "[process_data]") {
 	constexpr float me = 0.0000001;
 	constexpr int feats_sensor_count = 21;
 	std::vector<double> imu_data[7];
@@ -39,7 +39,7 @@ TEST_CASE("extract_stats_from_sensor using event27.csv", "[process_data],[static
 }
 
 
-TEST_CASE("extract_features using event27.csv", "[process_data],[static]") {
+TEST_CASE("extract_features using event27.csv", "[process_data]") {
 	constexpr float me = 0.0000001;
 	constexpr int feats_sensor_count = 21;
 	constexpr int feats_count = (feats_sensor_count * 2) + 1;
@@ -69,7 +69,7 @@ TEST_CASE("extract_features using event27.csv", "[process_data],[static]") {
 }
 
 
-TEST_CASE("estimate_time", "[process_data],[static]") {
+TEST_CASE("estimate_time", "[process_data]") {
 	constexpr float me = 0.0000001;
 
 	// timestamps generated randomly from https://onlinenumbertools.com/generate-random-numbers
@@ -155,7 +155,9 @@ TEST_CASE("estimate_time", "[process_data],[static]") {
 }
 
 
-TEST_CASE("process_data: expected <5 percentage of failures", "[process_data]") {
+TEST_CASE("process_data for every event file: expected <5 percentage of failures " 
+	  "with a margin of 160", "[process_data]"
+) {
 	int success_count = 0;
 	int fail_count = 0;
 	constexpr int test_file_count = 60;
@@ -167,7 +169,7 @@ TEST_CASE("process_data: expected <5 percentage of failures", "[process_data]") 
 		const double duration = read_data_from_csv(imu_data, filename);
 		const double estimation = process_data(imu_data);
 
-		if (estimation == Approx(duration).margin(160.0)) { // TODO: margin 160.0 - low demand
+		if (estimation == Approx(duration).margin(160.0)) {
 			success_count++;
 		} else {
 			WARN("failed estimation of file " << filename << ": " 

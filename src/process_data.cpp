@@ -13,8 +13,6 @@ constexpr int feats_sensor_count = (feats_count - 1) / 2;
 double process_data(std::vector<double> imu_data[7]) {
 	const int data_size = imu_data[0].size();
 	constexpr int w_offset = round(w_size*(1.0 - overlap_factor));
-	// const int w_count = floor( (data_size - w_size) / 
-	//			      (w_size * overlap_factor) ) + 1;
 	movement w_class;
 	int first_pos, i = 0;
 	std::vector<movement> windows;
@@ -83,9 +81,9 @@ void extract_stats_from_sensor(
 
 	//const float rms = sqrt(np.square(subset_data.to_numpy()).sum() / 
 	//		     (w_size*3)); 
-	// TODO: too complex and not significative at all
+	// too complex and not significative at all
 
-	// TODO: gsl needs to rearrange the data to get this stats. Ignored by now
+	// gsl needs to rearrange the data to get this stats. Ignored by now
 	/*
 	const float median_x = gsl_stats_float_median(data_x, 1, w_size);
 	const float median_y = gsl_stats_float_median(data_y, 1, w_size);
