@@ -29,28 +29,28 @@ void loop() {
 
 	if (event_button == 'P') {
 		Serial.println("Reading IMU data ...");
-
 		event_button = 'W';
 		while(event_button == 'W') {
 			read_imu_data();
 			read_button_input();
 		}
 
-
 		Serial.println("Processing data ...");
-
 		double estimation = process_data(imu_data);
 		if (estimation >= 0.0) {
 			Serial.print("Time inferred: ");
 			Serial.println(estimation);
-		} else {
+		} else if (estimation == -1.0) {
 			Serial.println("ERROR: Swimming event not completed");
+		} else if (estimation == -2.0) {
+			Serial.println("ERROR: Imu data was empty");
+		} else {
+			Serial.println("ERROR: Unknown error");
 		}
-			
+
 		event_button = 'W';
 		for (int i = 0; i < 7; i++)
 			imu_data[i].clear();
-
 
 		Serial.println("Waiting for reading signal:");
 	}

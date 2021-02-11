@@ -34,7 +34,8 @@ double process_data(std::vector<double> imu_data[7]) {
 		i += w_offset;
 	}
 
-	return estimate_time(windows, timestamps);
+	// if imu_data empty ==> error code -2.0
+	return data_size != 0 ? estimate_time(windows, timestamps) : -2.0;
 }
 
 
@@ -143,7 +144,7 @@ double estimate_time(
 	}
 
 	if (last_start_pos == -1 || first_finish_pos == -1) {
-		// not completed event of swimming
+		// swimming event not completed ==> error code -1.0
 		result = -1.0;
 	} else {
 		// looking for consecutive starts
