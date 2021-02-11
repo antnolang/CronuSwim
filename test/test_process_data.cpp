@@ -181,3 +181,11 @@ TEST_CASE("process_data for every event file: expected <5 percentage of failures
 	REQUIRE((float)fail_count / (float)test_file_count < 0.05);
 }
 
+
+TEST_CASE("process_data with empty imu_data", "[process_data]") {
+	std::vector<double> imu_data[7];
+	const double estimation = process_data(imu_data);
+
+	REQUIRE(estimation == Approx(-2.0));
+}
+
