@@ -11,10 +11,10 @@ constexpr int feats_sensor_count = (feats_count - 1) / 2;
 
 
 double process_data(std::vector<double> imu_data[7]) {
-	const int data_size = imu_data[0].size();
-	constexpr int w_offset = round(w_size*(1.0 - overlap_factor));
+	const size_t data_size = imu_data[0].size();
+	constexpr int w_offset = (int)round(w_size*(1.0 - overlap_factor));
 	movement w_class;
-	int first_pos, i = 0;
+	size_t first_pos, i = 0;
 	std::vector<movement> windows;
 	std::vector<double> timestamps;
 	float features[feats_count];
@@ -129,38 +129,40 @@ void extract_stats_from_sensor(
 double estimate_time(
     const std::vector<movement> &windows, const std::vector<double> &timestamps
 ) {
-	const int length = windows.size();
-	int last_start_pos = -1, first_finish_pos = -1, i;
+	const size_t length = windows.size();
+	size_t last_start_pos = 0, first_finish_pos = 0, j;
+	bool start_found = false;
 	double result;
 
 	// looking for the last start and the first finish
-	for (int i = 0; i < length; i++) {
+	for (size_t i = 0; i < length; i++) {
 		if (windows[i] == START) {
 			last_start_pos = i;
-		} else if (windows[i] == FINISH && last_start_pos != -1) {
+			start_found = true;
+		} else if (windows[i] == FINISH && start_found) {
 			first_finish_pos = i;
 			break;
 		}
 	}
 
-	if (last_start_pos == -1 || first_finish_pos == -1) {
+	if (first_finish_pos == 0) {
 		// swimming event not completed ==> error code -1.0
 		result = -1.0;
 	} else {
 		// looking for consecutive starts
 		int consctv_starts = 1;
 		
-		i = last_start_pos - 1;
-		while (i >= 0 && windows[i] == START) {
-			consctv_starts++; i--;
+		j = last_start_pos - 1;
+		while (j < SIZE_MAX && windows[j] == START) {
+			consctv_starts++; j--;
 		}
 
 		// looking for consecutive finishes
 		int consctv_finishes = 1;
 
-		i = first_finish_pos + 1;
-		while (i < length && windows[i] == FINISH) {
-			consctv_finishes++; i++;
+		j = first_finish_pos + 1;
+		while (j < length && windows[j] == FINISH) {
+			consctv_finishes++; j++;
 		}
 
 		// average timestamps for starts
