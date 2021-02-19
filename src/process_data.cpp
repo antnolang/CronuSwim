@@ -3,104 +3,83 @@
 #include "trained_model.h" // it's a header file only: can only be imported once
 
 
-constexpr int w_size = 70;
-constexpr float overlap_factor = 0.25; // window data overlap between them by a factor of 0.25
 constexpr int feats_count = 43; // average timestamp, 21 accel stats, 21 gyros stats
 constexpr int feats_sensor_count = (feats_count - 1) / 2;
 
 
 
-double process_data(std::vector<double> imu_data[7]) {
-	const size_t data_size = imu_data[0].size();
-	constexpr int w_offset = (int)round(w_size*(1.0 - overlap_factor));
-	movement w_class;
-	size_t first_pos, i = 0;
-	std::vector<movement> windows;
-	std::vector<double> timestamps;
+void process_window(
+    const double imu_data[7][W_SIZE], std::vector<movement> &windows, 
+    std::vector<double> &timestamps
+) {
 	float features[feats_count];
+	movement w_class;
 
-	while (i + w_size <= data_size) {
-		first_pos = i;
-		extract_features(features, imu_data, first_pos);
-		
-		// classify using features and skipping timestamp
-		w_class = (movement)eml_bayes_predict(&trained_model_model, 
-					              features + 1, 
-						      feats_count - 1);
+	extract_features(features, imu_data);
+	// classify using features and skipping timestamp
+	w_class = (movement)eml_bayes_predict(&trained_model_model, features + 1, 
+					      feats_count - 1);
 
-		windows.push_back(w_class);
-		timestamps.push_back(features[0]);
-
-		i += w_offset;
-	}
-
-	// if imu_data empty ==> error code -2.0
-	return data_size != 0 ? estimate_time(windows, timestamps) : -2.0;
+	windows.push_back(w_class);
+	timestamps.push_back(features[0]);
 }
 
 
-void extract_features(
-    float features[], const std::vector<double> imu_data[7], const int first_pos
-) {
-	const double * time_data = imu_data[0].data();
+void extract_features(float features[], const double imu_data[7][W_SIZE]) {
 	constexpr int p_offset = feats_sensor_count + 1;
 
-	features[0] = stats_mean(time_data + first_pos, w_size);
-	extract_stats_from_sensor(features + 1, ACCEL, imu_data, first_pos);
-	extract_stats_from_sensor(features + p_offset, GYROS, imu_data, first_pos);
+	features[0] = stats_mean(imu_data[0], W_SIZE);
+	extract_stats_from_sensor(features + 1, ACCEL, imu_data);
+	extract_stats_from_sensor(features + p_offset, GYROS, imu_data);
 }
 
 
 void extract_stats_from_sensor(
-    float * features, const sensor_3D sensor, 
-    const std::vector<double> imu_data[7], const int first_pos
+    float * features, const sensor_3D sensor, const double imu_data[7][W_SIZE]
 ) {
 	const int x = sensor, y = sensor + 1, z = sensor + 2;
-	const double * data_x = imu_data[x].data() + first_pos;
-	const double * data_y = imu_data[y].data() + first_pos;
-	const double * data_z = imu_data[z].data() + first_pos;
 
-	const double mean_x = stats_mean(data_x, w_size);
-	const double mean_y = stats_mean(data_y, w_size);
-	const double mean_z = stats_mean(data_z, w_size);
-	const double var_x = stats_variance(data_x, w_size, mean_x);
-	const double var_y = stats_variance(data_y, w_size, mean_y);
-	const double var_z = stats_variance(data_z, w_size, mean_z);
+	const double mean_x = stats_mean(imu_data[x], W_SIZE);
+	const double mean_y = stats_mean(imu_data[y], W_SIZE);
+	const double mean_z = stats_mean(imu_data[z], W_SIZE);
+	const double var_x = stats_variance(imu_data[x], W_SIZE, mean_x);
+	const double var_y = stats_variance(imu_data[y], W_SIZE, mean_y);
+	const double var_z = stats_variance(imu_data[z], W_SIZE, mean_z);
 	const double stdev_x = stats_sd(var_x);
 	const double stdev_y = stats_sd(var_y);
 	const double stdev_z = stats_sd(var_z);
 	double min_x, max_x, min_y, max_y, min_z, max_z;
-	stats_min_max(min_x, max_x, data_x, w_size);
-	stats_min_max(min_y, max_y, data_y, w_size);
-	stats_min_max(min_z, max_z, data_z, w_size);
-	const double kurt_x = stats_kurtosis(data_x, w_size, mean_x, stdev_x);
-	const double kurt_y = stats_kurtosis(data_y, w_size, mean_y, stdev_y);
-	const double kurt_z = stats_kurtosis(data_z, w_size, mean_z, stdev_z);
-	const double skew_x = stats_skew(data_x, w_size, mean_x, stdev_x);
-	const double skew_y = stats_skew(data_y, w_size, mean_y, stdev_y);
-	const double skew_z = stats_skew(data_z, w_size, mean_z, stdev_z);
+	stats_min_max(min_x, max_x, imu_data[x], W_SIZE);
+	stats_min_max(min_y, max_y, imu_data[y], W_SIZE);
+	stats_min_max(min_z, max_z, imu_data[z], W_SIZE);
+	const double kurt_x = stats_kurtosis(imu_data[x], W_SIZE, mean_x, stdev_x);
+	const double kurt_y = stats_kurtosis(imu_data[y], W_SIZE, mean_y, stdev_y);
+	const double kurt_z = stats_kurtosis(imu_data[z], W_SIZE, mean_z, stdev_z);
+	const double skew_x = stats_skew(imu_data[x], W_SIZE, mean_x, stdev_x);
+	const double skew_y = stats_skew(imu_data[y], W_SIZE, mean_y, stdev_y);
+	const double skew_z = stats_skew(imu_data[z], W_SIZE, mean_z, stdev_z);
 
 	//const float rms = sqrt(np.square(subset_data.to_numpy()).sum() / 
-	//		     (w_size*3)); 
+	//		     (W_SIZE*3)); 
 	// too complex and not significative at all
 
 	// gsl needs to rearrange the data to get this stats. Ignored by now
 	/*
-	const float median_x = gsl_stats_float_median(data_x, 1, w_size);
-	const float median_y = gsl_stats_float_median(data_y, 1, w_size);
-	const float median_z = gsl_stats_float_median(data_z, 1, w_size);
+	const float median_x = gsl_stats_float_median(data_x, 1, W_SIZE);
+	const float median_y = gsl_stats_float_median(data_y, 1, W_SIZE);
+	const float median_z = gsl_stats_float_median(data_z, 1, W_SIZE);
 	const float q1_x = 
-	       gsl_stats_float_quantile_from_sorted_data(data_x, 1, w_size, 0.25);
+	       gsl_stats_float_quantile_from_sorted_data(data_x, 1, W_SIZE, 0.25);
 	const float q1_y =  
-	       gsl_stats_float_quantile_from_sorted_data(data_y, 1, w_size, 0.25);
+	       gsl_stats_float_quantile_from_sorted_data(data_y, 1, W_SIZE, 0.25);
 	const float q1_z =  
-	       gsl_stats_float_quantile_from_sorted_data(data_z, 1, w_size, 0.25);
+	       gsl_stats_float_quantile_from_sorted_data(data_z, 1, W_SIZE, 0.25);
 	const float q3_x =  
-	       gsl_stats_float_quantile_from_sorted_data(data_x, 1, w_size, 0.75);
+	       gsl_stats_float_quantile_from_sorted_data(data_x, 1, W_SIZE, 0.75);
 	const float q3_y =  
-	       gsl_stats_float_quantile_from_sorted_data(data_y, 1, w_size, 0.75);
+	       gsl_stats_float_quantile_from_sorted_data(data_y, 1, W_SIZE, 0.75);
 	const float q3_z =  
-	       gsl_stats_float_quantile_from_sorted_data(data_z, 1, w_size, 0.75);
+	       gsl_stats_float_quantile_from_sorted_data(data_z, 1, W_SIZE, 0.75);
 	const float iqr_x = q3_x - q1_x;
 	const float iqr_y = q3_y - q1_y;
 	const float iqr_z = q3_z - q1_z;
@@ -122,17 +101,17 @@ void extract_stats_from_sensor(
 		*features = (float)*p_result;
 		features++; p_result++;
 		length--;
-	}	
+	}
 }
 
 
-double estimate_time(
+float estimate_time(
     const std::vector<movement> &windows, const std::vector<double> &timestamps
 ) {
 	const size_t length = windows.size();
 	size_t last_start_pos = 0, first_finish_pos = 0, j;
 	bool start_found = false;
-	double result;
+	float result;
 
 	// looking for the last start and the first finish
 	for (size_t i = 0; i < length; i++) {
@@ -145,7 +124,10 @@ double estimate_time(
 		}
 	}
 
-	if (first_finish_pos == 0) {
+	if (length == 0) {
+		// nothing to process
+		result = -2.0;
+	} else if (first_finish_pos == 0) {
 		// swimming event not completed ==> error code -1.0
 		result = -1.0;
 	} else {

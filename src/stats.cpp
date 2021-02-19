@@ -4,6 +4,7 @@
 
 
 /* stats_mean, stats_variance, stats_kurtosis and stats_skew copied from GSL GNU
+ * with some minor changes
  *
  * GSL NOTE: we use a recurrence relation in these functions to stably update a 
  *           running value so there aren't any large sums that can overflow
