@@ -1,36 +1,47 @@
 
+#include <fstream>
+#include <vector>
 #include <string>
+#include <sstream>
 
 #include "catch.hpp"
-#include "catch_helper.hpp"
 #include "process_data.hpp"
+#include "stats.hpp"
+
+
+constexpr int feats_sensor_count = 21;
+constexpr int feats_count = (feats_sensor_count * 2) + 1;
+
+
+// Ancillary functions
+static bool read_1st_window_from_csv(
+    double imu_data[7][W_SIZE], const std::string filename
+);
+static void check_array_approx(const double computed[], const double expected[]);
+static char movement_int_to_char(int i);
 
 
 
-TEST_CASE("extract_stats_from_sensor using event27.csv", "[process_data]") {
+TEST_CASE("extract_stats_from_sensor using first window of event27.csv", 
+	  "[process_data]"
+) {
 	constexpr float me = 0.0000001;
-	constexpr int feats_sensor_count = 21;
-	std::vector<double> imu_data[7];
+	double imu_data[7][W_SIZE]; // w_size = 70
 	float features[feats_sensor_count];
 	sensor_3D sensor = GENERATE(ACCEL, GYROS);
-	int first_pos = GENERATE(0, 59); // w_size = 70
-
-	constexpr float expected_res[2][2][feats_sensor_count] = {
- /* ACCEL - 0  */	-0.042571428571429, -0.55227142857143, -0.84475714285714, 0.0085916428307173, 0.0091463051534108, 0.0050665167359398, 0.000073816326530616, 0.000083654897959308, 0.000025669591835558, -0.069, -0.580, -0.857, -0.027, -0.537, -0.835, 0.8826789660749395, 0.563486000435029, -0.6289091800652478, -0.8224259442845651, -0.9375635402876765, -0.45971082883459685,
- /* ACCEL - 59 */	-0.034742857142857, -0.56345714285714, -0.8379, 0.0086663317570036, 0.011566806837162, 0.0088964679989436, 0.000075105306122449, 0.00013379102040822, 0.000079147142856227, -0.055, -0.589, -0.855, -0.018, -0.532, -0.820, -0.6349873741886602, 0.3321879782556616, -0.994875225964436, -0.1457982203222088, 0.06111678783540695, 0.17019665034162287,
- /* GYROS - 0  */	-1.5973142857143, 0.42201428571429, -0.77087142857143, 0.7256668173452, 0.85610552575281, 0.9823307403667, 0.52659232979592, 0.73291667122449, 0.96497368346939, -2.869, -2.136, -3.052, -0.061, 1.953, 0.854, -0.7490513065291156, 1.0112479704644457, -0.4723143922086641, 0.25161425088606093, -0.828537796196954, -0.4854193239006291,
- /* GYROS - 59 */	-0.77437142857143, 1.0480571428571, 2.2330142857143, 3.0619488526634, 1.2534808664072, 2.3925670045423, 9.3755307763265, 1.571214282449, 5.7243768712245, -5.432, -0.977, -3.052, 5.493, 3.845, 5.554, -0.6205828634130963, -0.4365929652505005, -0.8253146073298572, 0.4133372071581709, 0.6807733153487078, -0.6037826423274072
+	
+	read_1st_window_from_csv(imu_data, "event27.csv");
+	constexpr float expected_res[2][feats_sensor_count] = {
+ /* ACCEL */	-0.042571428571429, -0.55227142857143, -0.84475714285714, 0.0085916428307173, 0.0091463051534108, 0.0050665167359398, 0.000073816326530616, 0.000083654897959308, 0.000025669591835558, -0.069, -0.580, -0.857, -0.027, -0.537, -0.835, 0.8826789660749395, 0.5634860004350299, -0.6289091800652464, -0.8224259442845651, -0.9375635402876767, -0.45971082883459685,
+ /* GYROS */	-1.5973142857143, 0.42201428571429, -0.77087142857143, 0.7256668173452, 0.85610552575281, 0.9823307403667, 0.52659232979592, 0.73291667122449, 0.96497368346939, -2.869, -2.136, -3.052, -0.061, 1.953, 0.854, -0.7490513065291151, 1.0112479704644448, -0.47231439220866234, 0.251614250886062, -0.8285377961969534, -0.4854193239006291
 	};
 
-	read_data_from_csv(imu_data, "event27.csv");
-
 	const std::string sensor_text = sensor == ACCEL ? "ACCEL" : "GYROS";
-	DYNAMIC_SECTION(sensor_text << " as sensor with first_pos=" << first_pos) {
-		extract_stats_from_sensor(features, sensor, imu_data, first_pos);
+	DYNAMIC_SECTION(sensor_text << " as sensor") {
+		extract_stats_from_sensor(features, sensor, imu_data);
 
-		const int i = sensor == ACCEL ? 0 : 1;
-		const int j = first_pos == 0 ? 0 : 1;
-		const float (&expected)[feats_sensor_count] = expected_res[i][j];
+		const int s = sensor == ACCEL ? 0 : 1;
+		const float (&expected)[feats_sensor_count] = expected_res[s];
 
 		for (int i = 0; i < feats_sensor_count; i++) {
 			CHECK(features[i] == Approx(expected[i]).margin(me));
@@ -39,33 +50,24 @@ TEST_CASE("extract_stats_from_sensor using event27.csv", "[process_data]") {
 }
 
 
-TEST_CASE("extract_features using event27.csv", "[process_data]") {
+TEST_CASE("extract_features using first window of event27.csv", "[process_data]") {
 	constexpr float me = 0.0000001;
-	constexpr int feats_sensor_count = 21;
-	constexpr int feats_count = (feats_sensor_count * 2) + 1;
-	std::vector<double> imu_data[7];
+	double imu_data[7][W_SIZE]; // w_size = 70
 	float features[feats_count];
-	int first_pos = GENERATE(0, 59);
 
-	constexpr double expected_timestamps[2] = {113193.5, 113252.5};
-	constexpr float expected_res[2][feats_count-1] = {
- /* ACCEL - 0  */	-0.042571428571429, -0.55227142857143, -0.84475714285714, 0.0085916428307173, 0.0091463051534108, 0.0050665167359398, 0.000073816326530616, 0.000083654897959308, 0.000025669591835558, -0.069, -0.580, -0.857, -0.027, -0.537, -0.835, 0.8826789660749395, 0.563486000435029, -0.6289091800652478, -0.8224259442845651, -0.9375635402876765, -0.45971082883459685,
- /* GYROS - 0  */	-1.5973142857143, 0.42201428571429, -0.77087142857143, 0.7256668173452, 0.85610552575281, 0.9823307403667, 0.52659232979592, 0.73291667122449, 0.96497368346939, -2.869, -2.136, -3.052, -0.061, 1.953, 0.854, -0.7490513065291156, 1.0112479704644457, -0.4723143922086641, 0.25161425088606093, -0.828537796196954, -0.4854193239006291,
- /* ACCEL - 59 */	-0.034742857142857, -0.56345714285714, -0.8379, 0.0086663317570036, 0.011566806837162, 0.0088964679989436, 0.000075105306122449, 0.00013379102040822, 0.000079147142856227, -0.055, -0.589, -0.855, -0.018, -0.532, -0.820, -0.6349873741886602, 0.3321879782556616, -0.994875225964436, -0.1457982203222088, 0.06111678783540695, 0.17019665034162287,
- /* GYROS - 59 */	-0.77437142857143, 1.0480571428571, 2.2330142857143, 3.0619488526634, 1.2534808664072, 2.3925670045423, 9.3755307763265, 1.571214282449, 5.7243768712245, -5.432, -0.977, -3.052, 5.493, 3.845, 5.554, -0.6205828634130963, -0.4365929652505005, -0.8253146073298572, 0.4133372071581709, 0.6807733153487078, -0.6037826423274072
+	constexpr float expected_timestamp = 113193.5;
+	constexpr float expected_res[feats_count-1] = {
+ /* ACCEL */	-0.042571428571429, -0.55227142857143, -0.84475714285714, 0.0085916428307173, 0.0091463051534108, 0.0050665167359398, 0.000073816326530616, 0.000083654897959308, 0.000025669591835558, -0.069, -0.580, -0.857, -0.027, -0.537, -0.835, 0.8826789660749395, 0.5634860004350299, -0.6289091800652464, -0.8224259442845651, -0.9375635402876767, -0.45971082883459685,
+ /* GYROS */	-1.5973142857143, 0.42201428571429, -0.77087142857143, 0.7256668173452, 0.85610552575281, 0.9823307403667, 0.52659232979592, 0.73291667122449, 0.96497368346939, -2.869, -2.136, -3.052, -0.061, 1.953, 0.854, -0.7490513065291151, 1.0112479704644448, -0.47231439220866234, 0.251614250886062, -0.8285377961969534, -0.4854193239006291
 	};
 
-	read_data_from_csv(imu_data, "event27.csv");
+	read_1st_window_from_csv(imu_data, "event27.csv");
 
-	DYNAMIC_SECTION("using first_pos=" << first_pos) {
-		extract_features(features, imu_data, first_pos);
-		const int i = first_pos == 0 ? 0 : 1;
-		const float (&expected)[feats_count-1] = expected_res[i]; // ACCEL and GYROS features
+	extract_features(features, imu_data);
 
-		CHECK(features[0] == Approx(expected_timestamps[i]).margin(me));
-		for (int i = 1; i < feats_count; i++)
-			CHECK(features[i] == expected[i-1]);
-	}
+	CHECK(features[0] == Approx(expected_timestamp).margin(me));
+	for (int i = 1; i < feats_count; i++)
+		CHECK(features[i] == Approx(expected_res[i-1]).margin(me));
 }
 
 
@@ -78,114 +80,223 @@ TEST_CASE("estimate_time", "[process_data]") {
 	SECTION("windows vector structure: S") {
 		std::vector<movement> windows { START };
 		std::vector<double> timestamps { 119.5313000 };
-		const double estimation = estimate_time(windows, timestamps);
+		const float estimation = estimate_time(windows, timestamps);
 
 		CHECK(estimation == Approx(-1.0).margin(me));
 	}
 	SECTION("windows vector structure: S-O") {
 		std::vector<movement> windows { START, OTHER };
 		std::vector<double> timestamps { 109.0248433, 150.3003813 };
-		const double estimation = estimate_time(windows, timestamps);
+		const float estimation = estimate_time(windows, timestamps);
 
 		CHECK(estimation == Approx(-1.0).margin(me));
 	}
 	SECTION("windows vector structure: S-F") {
 		std::vector<movement> windows { START, FINISH };
 		std::vector<double> timestamps { 89.4012356, 105.4825108 };
-		const double estimation = estimate_time(windows, timestamps);
+		const float estimation = estimate_time(windows, timestamps);
 
 		CHECK(estimation == Approx(16.0812752).margin(me));
 	}
 	SECTION("windows vector structure: S-O-F") {
 		std::vector<movement> windows { START, OTHER, FINISH };
 		std::vector<double> timestamps { 120.1440555, 124.5974776, 170.0856107 };
-		const double estimation = estimate_time(windows, timestamps);
+		const float estimation = estimate_time(windows, timestamps);
 
 		CHECK(estimation == Approx(49.9415552).margin(me));
 	}
 	SECTION("windows vector structure: S-S-S-O-O-F") {
 		std::vector<movement> windows { START, START, START, OTHER, OTHER, FINISH };
 		std::vector<double> timestamps { 37.4677422, 72.0910316, 105.8747562, 116.9008569, 145.2582483, 176.4821443 };
-		const double estimation = estimate_time(windows, timestamps);
+		const float estimation = estimate_time(windows, timestamps);
 
 		CHECK(estimation == Approx(104.67096763).margin(me));
 	}
 	SECTION("windows vector structure: S-O-O-F-F-F") {
 		std::vector<movement> windows { START, OTHER, OTHER, FINISH, FINISH, FINISH };
 		std::vector<double> timestamps { 10.3808606, 16.5270632, 31.639025, 48.8453378, 129.1268248, 138.8565136 };
-		const double estimation = estimate_time(windows, timestamps);
+		const float estimation = estimate_time(windows, timestamps);
 
 		CHECK(estimation == Approx(95.22869813).margin(me));
 	}
 	SECTION("windows vector structure: S-S-O-O-O-F-F-F") {
 		std::vector<movement> windows { START, START, OTHER, OTHER, OTHER, FINISH, FINISH, FINISH };
 		std::vector<double> timestamps { 69.9216319, 88.759334, 94.3151542, 97.0999855, 108.7473468, 163.9695802, 178.0340261, 180.1993829 };
-		const double estimation = estimate_time(windows, timestamps);
+		const float estimation = estimate_time(windows, timestamps);
 
 		CHECK(estimation == Approx(94.72718012).margin(me));
 	}
 	SECTION("windows vector structure: O-F-F-F") {
 		std::vector<movement> windows { OTHER, FINISH, FINISH, FINISH };
 		std::vector<double> timestamps { 25.4465651, 26.060263, 103.8528839, 119.7795445 };
-		const double estimation = estimate_time(windows, timestamps);
+		const float estimation = estimate_time(windows, timestamps);
 
 		CHECK(estimation == Approx(-1.0).margin(me));
 	}
 	SECTION("windows vector structure: O-O-S-O-O-O-F-F") {
 		std::vector<movement> windows { OTHER, OTHER, START, OTHER, OTHER, OTHER, FINISH, FINISH };
 		std::vector<double> timestamps { 28.5234834, 41.290292, 42.3668828, 44.6222175, 66.1084976, 66.9544599, 127.176117, 161.2673861 };
-		const double estimation = estimate_time(windows, timestamps);
+		const float estimation = estimate_time(windows, timestamps);
 
 		CHECK(estimation == Approx(101.85486875).margin(me));
 	}
 	SECTION("windows vector structure: S-S-S-S-O-F-F-O-O-O") {
 		std::vector<movement> windows { START, START, START, START, OTHER, FINISH, FINISH, OTHER, OTHER, OTHER };
 		std::vector<double> timestamps { 8.3324093, 27.5179932, 30.6220361, 36.9015075, 43.079359, 65.995949, 132.0058814, 137.7501647, 154.0399874, 177.7511424 };
-		const double estimation = estimate_time(windows, timestamps);
+		const float estimation = estimate_time(windows, timestamps);
 
 		CHECK(estimation == Approx(73.15742868).margin(me));
 	}
 	SECTION("windows vector structure: O-S-S-O-O-F-F-F-F-O") {
 		std::vector<movement> windows { OTHER, START, START, OTHER, OTHER, FINISH, FINISH, FINISH, FINISH, OTHER };
 		std::vector<double> timestamps { 37.8360314, 62.7220482, 72.7768973, 125.4473504, 126.7777332, 130.3964639, 156.3557188, 176.9320942, 188.5169835, 195.524165 };
-		const double estimation = estimate_time(windows, timestamps);
+		const float estimation = estimate_time(windows, timestamps);
 
 		CHECK(estimation == Approx(95.30084235).margin(me));
 	}
+	SECTION("empty windows") {
+		std::vector<movement> windows;
+		std::vector<double> timestamps;
+		const float estimation = estimate_time(windows, timestamps);
+
+		CHECK(estimation == Approx(-2.0).margin(me));
+	}
 }
 
 
-TEST_CASE("process_data for every event file: expected <5 percentage of failures " 
-	  "with a margin of 160", "[process_data]"
+TEST_CASE("process_window for 60 files per phases: expected success rate higher " 
+	  "than 0.95", "[process_data]"
 ) {
 	int success_count = 0;
-	int fail_count = 0;
-	constexpr int test_file_count = 60;
+	std::vector<movement> windows;
+	std::vector<double> timestamps;
+	constexpr float me = 0.0000001;
+	constexpr int phases_count = 3;
+	constexpr int files_per_phases_count = 60;
 
-	for (int i = 1; i <= test_file_count; i++) {
-		std::vector<double> imu_data[7];
-		const std::string filename = "event" + std::to_string(i) + ".csv";
+	for (int i = 0; i < phases_count; i++) { // Start, other, finish
+		for (int j = 1; j <= files_per_phases_count; j++) {
+			double imu_data[7][W_SIZE];
+			const char phase = movement_int_to_char(i);
+			bool data_read;
 
-		const double duration = read_data_from_csv(imu_data, filename);
-		const double estimation = process_data(imu_data);
+			const std::string filename = phase + std::to_string(j) 
+							   + ".csv";
+			data_read = read_1st_window_from_csv(imu_data, filename);
+			if (!data_read)
+				WARN(filename << "not found");
 
-		if (estimation == Approx(duration).margin(160.0)) {
-			success_count++;
-		} else {
-			WARN("failed estimation of file " << filename << ": " 
-			     << estimation << " == " << duration);
-			fail_count++;
+			process_window(imu_data, windows, timestamps);
+
+			if (windows.back() != (movement)i) {
+				WARN("failed classification of " << filename << 
+				     ": \n - predicted = " << 
+				     movement_int_to_char(windows.back()) << 
+				     "\n - actual = " << movement_int_to_char(i));
+			} else {
+				double expected = stats_mean(imu_data[0], W_SIZE);
+				CHECKED_IF(timestamps.back() == Approx(expected)
+								      .margin(me)) {
+					success_count++;
+				}
+			}
 		}
 	}
 
-	REQUIRE((float)fail_count / (float)test_file_count < 0.05);
+	float success_rate = (float)success_count / 
+			     (phases_count*files_per_phases_count);
+	REQUIRE(success_rate > 0.95);
 }
 
 
-TEST_CASE("process_data with empty imu_data", "[process_data]") {
-	std::vector<double> imu_data[7];
-	const double estimation = process_data(imu_data);
+/* =====================  ANCILLARY FUNCTION AND TESTS  ===================== */
 
-	REQUIRE(estimation == Approx(-2.0));
+
+// Functions ---------------------------
+
+static bool read_1st_window_from_csv(
+    double imu_data[7][W_SIZE], const std::string filename
+) {
+	std::string str, number;
+	std::vector<std::string> row;
+
+	std::ifstream eventfile("./test/data/" + filename);
+	if (eventfile.is_open()) {
+		std::getline(eventfile, str); // skip the CSV header
+		int i = 0;
+		while (std::getline(eventfile, str) && i < W_SIZE) {
+			row.clear();
+			std::istringstream iss(str);
+			while (std::getline(iss, number, ','))
+				row.push_back(number);
+
+			imu_data[0][i] = stof(row[0]); // t
+			imu_data[1][i] = stof(row[1]); // aX
+			imu_data[2][i] = stof(row[2]); // aY
+			imu_data[3][i] = stof(row[3]); // aZ
+			imu_data[4][i] = stof(row[4]); // gX
+			imu_data[5][i] = stof(row[5]); // gY
+			imu_data[6][i] = stof(row[6]); // gZ
+
+			i++;
+		}
+
+		return true;
+	} else {
+		return false; // file not found
+	}
+}
+
+
+static void check_array_approx(const double computed[], const double expected[]) {
+	for (int i = 0; i < W_SIZE; i++)
+		CHECK(computed[i] == Approx(expected[i]).margin(0.000001));
+}
+
+
+static char movement_int_to_char(int i) {
+	char res;
+
+	if (i == 0)
+		res = 'S';
+	else if (i == 2)
+		res = 'F';
+	else
+		res = 'O';
+
+	return res;
+}
+
+
+
+// Tests -------------------------------
+
+TEST_CASE("reading window", "[catch_helper]") {
+	double imu_data[7][W_SIZE]; // w_size = 70
+
+	SECTION("from non-existent file") {
+		REQUIRE(!read_1st_window_from_csv(imu_data, "null"));
+	}
+	SECTION("first window from event27.csv") {
+		CHECK(read_1st_window_from_csv(imu_data, "event27.csv"));
+
+		// values copied directly from event27.csv
+		constexpr double  t[W_SIZE] = {113159.0, 113160.0, 113161.0, 113162.0, 113163.0, 113164.0, 113165.0, 113166.0, 113167.0, 113168.0, 113169.0, 113170.0, 113171.0, 113172.0, 113173.0, 113174.0, 113175.0, 113176.0, 113177.0, 113178.0, 113179.0, 113180.0, 113181.0, 113182.0, 113183.0, 113184.0, 113185.0, 113186.0, 113187.0, 113188.0, 113189.0, 113190.0, 113191.0, 113192.0, 113193.0, 113194.0, 113195.0, 113196.0, 113197.0, 113198.0, 113199.0, 113200.0, 113201.0, 113202.0, 113203.0, 113204.0, 113205.0, 113206.0, 113207.0, 113208.0, 113209.0, 113210.0, 113211.0, 113212.0, 113213.0, 113214.0, 113215.0, 113216.0, 113217.0, 113218.0, 113219.0, 113220.0, 113221.0, 113222.0, 113223.0, 113224.0, 113225.0, 113226.0, 113227.0, 113228.0};
+		constexpr double aX[W_SIZE] = {-0.041, -0.043, -0.042, -0.047, -0.052, -0.059, -0.068, -0.069, -0.062, -0.055, -0.047, -0.041, -0.038, -0.037, -0.039, -0.041, -0.037, -0.034, -0.035, -0.036, -0.041, -0.044, -0.045, -0.049, -0.047, -0.041, -0.033, -0.028, -0.027, -0.030, -0.033, -0.035, -0.038, -0.040, -0.040, -0.040, -0.040, -0.043, -0.048, -0.051, -0.053, -0.050, -0.046, -0.042, -0.039, -0.039, -0.042, -0.046, -0.052, -0.051, -0.048, -0.042, -0.033, -0.029, -0.030, -0.034, -0.034, -0.034, -0.037, -0.038, -0.036, -0.038, -0.040, -0.040, -0.045, -0.052, -0.055, -0.052, -0.046, -0.041};
+		constexpr double aY[W_SIZE] = {-0.551, -0.563, -0.564, -0.560, -0.558, -0.556, -0.554, -0.551, -0.546, -0.542, -0.540, -0.538, -0.537, -0.541, -0.547, -0.549, -0.552, -0.548, -0.547, -0.548, -0.548, -0.548, -0.544, -0.543, -0.543, -0.542, -0.545, -0.548, -0.549, -0.551, -0.555, -0.556, -0.553, -0.545, -0.542, -0.545, -0.549, -0.550, -0.552, -0.549, -0.546, -0.543, -0.546, -0.553, -0.561, -0.561, -0.556, -0.553, -0.555, -0.556, -0.554, -0.552, -0.549, -0.546, -0.544, -0.542, -0.545, -0.552, -0.561, -0.573, -0.580, -0.575, -0.568, -0.559, -0.553, -0.555, -0.560, -0.570, -0.572, -0.570};
+		constexpr double aZ[W_SIZE] = {-0.857, -0.854, -0.850, -0.847, -0.847, -0.848, -0.847, -0.847, -0.844, -0.840, -0.840, -0.844, -0.846, -0.845, -0.845, -0.843, -0.841, -0.841, -0.840, -0.837, -0.839, -0.844, -0.844, -0.847, -0.852, -0.855, -0.855, -0.852, -0.849, -0.851, -0.851, -0.850, -0.844, -0.842, -0.840, -0.840, -0.841, -0.842, -0.849, -0.851, -0.854, -0.853, -0.848, -0.844, -0.840, -0.840, -0.841, -0.845, -0.850, -0.851, -0.849, -0.843, -0.840, -0.840, -0.841, -0.844, -0.842, -0.836, -0.835, -0.839, -0.843, -0.847, -0.843, -0.842, -0.839, -0.841, -0.841, -0.841, -0.842, -0.838};
+		constexpr double gX[W_SIZE] = {-0.549, -0.122, -0.671, -0.854, -0.854, -1.465, -1.953, -2.380, -2.869, -2.869, -2.625, -2.502, -2.625, -2.502, -2.380, -2.625, -2.563, -2.563, -2.502, -1.953, -1.465, -1.282, -0.854, -0.854, -0.610, -0.183, -0.122, -0.061, -0.427, -0.732, -0.854, -1.526, -2.136, -2.563, -2.441, -1.770, -1.343, -1.099, -0.732, -0.671, -1.221, -1.465, -1.587, -1.892, -1.770, -1.709, -1.953, -2.014, -1.953, -1.587, -1.587, -1.221, -1.404, -1.465, -1.770, -2.014, -2.075, -1.770, -1.892, -1.831, -1.709, -2.075, -1.953, -1.770, -1.465, -0.916, -0.916, -1.221, -1.831, -2.625};
+		constexpr double gY[W_SIZE] = {-2.136, -2.136, -1.709, -1.343, -0.183, 0.977, 1.770, 1.953, 1.770, 1.404, 1.099, 0.732, 0.549, 0.610, 0.793, 1.160, 1.221, 0.854, 0.427, -0.122, -0.488, -0.427, 0.061, 0.610, 1.099, 1.465, 1.343, 0.916, 0.366, -0.061, -0.061, 0.305, 1.038, 1.404, 1.343, 1.160, 1.221, 0.732, 0.122, -0.183, -0.122, 0.244, 0.305, 0.244, 0.122, -0.061, 0.000, 0.122, 0.305, 0.854, 1.648, 1.709, 0.793, -0.122, -0.854, -0.977, -0.671, -0.244, 0.366, 0.549, 0.305, 0.122, 0.305, 0.488, 0.427, 0.183, 0.427, 0.977, 1.160, 1.282};
+		constexpr double gZ[W_SIZE] = {0.000, -0.122, -0.122, -0.183, -0.183, -0.061, 0.366, 0.366, 0.061, 0.061, -0.183, -0.244, -0.061, 0.061, 0.427, 0.549, 0.671, 0.854, 0.854, 0.732, 0.549, 0.244, 0.061, 0.244, 0.061, 0.000, -0.061, -0.305, -0.427, -0.183, -0.122, -0.305, -0.671, -1.160, -0.977, -0.732, -0.854, -1.038, -1.343, -1.404, -1.099, -0.977, -0.977, -1.343, -1.587, -1.404, -1.099, -0.732, -0.610, -0.793, -0.916, -1.221, -1.465, -1.770, -1.953, -2.258, -2.625, -2.869, -2.991, -3.052, -2.686, -2.502, -2.319, -1.892, -1.648, -1.465, -1.526, -1.282, -1.221, -1.099};
+
+		check_array_approx(imu_data[0], t );
+		check_array_approx(imu_data[1], aX);
+		check_array_approx(imu_data[2], aY);
+		check_array_approx(imu_data[3], aZ);
+		check_array_approx(imu_data[4], gX);
+		check_array_approx(imu_data[5], gY);
+		check_array_approx(imu_data[6], gZ);
+	}
+
 }
 
