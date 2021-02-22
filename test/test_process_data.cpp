@@ -14,12 +14,22 @@ constexpr int feats_count = (feats_sensor_count * 2) + 1;
 
 
 // Ancillary functions
-static bool read_1st_window_from_csv(
+static void read_1st_window_from_csv(
     double imu_data[7][W_SIZE], const std::string filename
 );
-static void check_array_approx(const double computed[], const double expected[]);
+static float read_expected_from_csv(float features[], const std::string filename);
 static char movement_int_to_char(int i);
 
+template <typename T>
+static constexpr void check_array_approx(
+    const T computed[], const T expected[], const int length
+) {
+	for (int i = 0; i < length; i++)
+		CHECK(computed[i] == Approx(expected[i]).margin(0.000001));
+}
+
+
+/* ==============================  MAIN TESTS  ============================== */
 
 
 TEST_CASE("extract_stats_from_sensor using first window of event27.csv", 
@@ -28,23 +38,23 @@ TEST_CASE("extract_stats_from_sensor using first window of event27.csv",
 	constexpr float me = 0.0000001;
 	double imu_data[7][W_SIZE]; // w_size = 70
 	float features[feats_sensor_count];
+	float all_expected[feats_count-1];
 	sensor_3D sensor = GENERATE(ACCEL, GYROS);
 	
 	read_1st_window_from_csv(imu_data, "event27.csv");
-	constexpr float expected_res[2][feats_sensor_count] = {
- /* ACCEL */	-0.042571428571429, -0.55227142857143, -0.84475714285714, 0.0085916428307173, 0.0091463051534108, 0.0050665167359398, 0.000073816326530616, 0.000083654897959308, 0.000025669591835558, -0.069, -0.580, -0.857, -0.027, -0.537, -0.835, 0.8826789660749395, 0.5634860004350299, -0.6289091800652464, -0.8224259442845651, -0.9375635402876767, -0.45971082883459685,
- /* GYROS */	-1.5973142857143, 0.42201428571429, -0.77087142857143, 0.7256668173452, 0.85610552575281, 0.9823307403667, 0.52659232979592, 0.73291667122449, 0.96497368346939, -2.869, -2.136, -3.052, -0.061, 1.953, 0.854, -0.7490513065291151, 1.0112479704644448, -0.47231439220866234, 0.251614250886062, -0.8285377961969534, -0.4854193239006291
-	};
+	read_expected_from_csv(all_expected, "stats_event27.csv");
+
+	// all_expected[feats_count-1]:
+	//     [0, feats_sensor_count)   --> ACCEL
+	//     [feats_sensor_count, end) --> GYROS
+	const int i_offset = sensor == ACCEL ? 0 : feats_sensor_count;
 
 	const std::string sensor_text = sensor == ACCEL ? "ACCEL" : "GYROS";
-	DYNAMIC_SECTION(sensor_text << " as sensor") {
-		extract_stats_from_sensor(features, sensor, imu_data);
-
-		const int s = sensor == ACCEL ? 0 : 1;
-		const float (&expected)[feats_sensor_count] = expected_res[s];
+	DYNAMIC_SECTION("using the following sensor: " << sensor_text) {
+		extract_stats_from_sensor(features, sensor, imu_data);		
 
 		for (int i = 0; i < feats_sensor_count; i++) {
-			CHECK(features[i] == Approx(expected[i]).margin(me));
+			CHECK(features[i] == Approx(all_expected[i_offset + i]).margin(me));
 		}
 	}
 }
@@ -54,14 +64,11 @@ TEST_CASE("extract_features using first window of event27.csv", "[process_data]"
 	constexpr float me = 0.0000001;
 	double imu_data[7][W_SIZE]; // w_size = 70
 	float features[feats_count];
-
-	constexpr float expected_timestamp = 113193.5;
-	constexpr float expected_res[feats_count-1] = {
- /* ACCEL */	-0.042571428571429, -0.55227142857143, -0.84475714285714, 0.0085916428307173, 0.0091463051534108, 0.0050665167359398, 0.000073816326530616, 0.000083654897959308, 0.000025669591835558, -0.069, -0.580, -0.857, -0.027, -0.537, -0.835, 0.8826789660749395, 0.5634860004350299, -0.6289091800652464, -0.8224259442845651, -0.9375635402876767, -0.45971082883459685,
- /* GYROS */	-1.5973142857143, 0.42201428571429, -0.77087142857143, 0.7256668173452, 0.85610552575281, 0.9823307403667, 0.52659232979592, 0.73291667122449, 0.96497368346939, -2.869, -2.136, -3.052, -0.061, 1.953, 0.854, -0.7490513065291151, 1.0112479704644448, -0.47231439220866234, 0.251614250886062, -0.8285377961969534, -0.4854193239006291
-	};
+	float expected_res[feats_count-1];
 
 	read_1st_window_from_csv(imu_data, "event27.csv");
+	const float expected_timestamp = read_expected_from_csv(expected_res, 
+								"stats_event27.csv");
 
 	extract_features(features, imu_data);
 
@@ -178,13 +185,10 @@ TEST_CASE("process_window for 60 files per phases: expected success rate higher 
 		for (int j = 1; j <= files_per_phases_count; j++) {
 			double imu_data[7][W_SIZE];
 			const char phase = movement_int_to_char(i);
-			bool data_read;
 
 			const std::string filename = phase + std::to_string(j) 
 							   + ".csv";
-			data_read = read_1st_window_from_csv(imu_data, filename);
-			if (!data_read)
-				WARN(filename << "not found");
+			read_1st_window_from_csv(imu_data, filename);
 
 			process_window(imu_data, windows, timestamps);
 
@@ -194,17 +198,16 @@ TEST_CASE("process_window for 60 files per phases: expected success rate higher 
 				     movement_int_to_char(windows.back()) << 
 				     "\n - actual = " << movement_int_to_char(i));
 			} else {
-				double expected = stats_mean(imu_data[0], W_SIZE);
-				CHECKED_IF(timestamps.back() == Approx(expected)
-								      .margin(me)) {
+				const double expected = stats_mean(imu_data[0], W_SIZE);
+				CHECKED_IF(timestamps.back() == Approx(expected).margin(me)) {
 					success_count++;
 				}
 			}
 		}
 	}
 
-	float success_rate = (float)success_count / 
-			     (phases_count*files_per_phases_count);
+	const float success_rate = (float)success_count / 
+				   (phases_count*files_per_phases_count);
 	REQUIRE(success_rate > 0.95);
 }
 
@@ -212,45 +215,83 @@ TEST_CASE("process_window for 60 files per phases: expected success rate higher 
 /* =====================  ANCILLARY FUNCTION AND TESTS  ===================== */
 
 
-// Functions ---------------------------
+// Functions -------------------------------------------------------------------
 
-static bool read_1st_window_from_csv(
+static void read_1st_window_from_csv(
     double imu_data[7][W_SIZE], const std::string filename
 ) {
 	std::string str, number;
 	std::vector<std::string> row;
 
 	std::ifstream eventfile("./test/data/" + filename);
-	if (eventfile.is_open()) {
-		std::getline(eventfile, str); // skip the CSV header
-		int i = 0;
-		while (std::getline(eventfile, str) && i < W_SIZE) {
-			row.clear();
-			std::istringstream iss(str);
-			while (std::getline(iss, number, ','))
-				row.push_back(number);
+	if (!eventfile.is_open())
+		std::exit(ENOENT);
 
-			imu_data[0][i] = stof(row[0]); // t
-			imu_data[1][i] = stof(row[1]); // aX
-			imu_data[2][i] = stof(row[2]); // aY
-			imu_data[3][i] = stof(row[3]); // aZ
-			imu_data[4][i] = stof(row[4]); // gX
-			imu_data[5][i] = stof(row[5]); // gY
-			imu_data[6][i] = stof(row[6]); // gZ
+	std::getline(eventfile, str); // skip the CSV header
+	int i = 0;
+	while (std::getline(eventfile, str) && i < W_SIZE) {
+		row.clear();
+		std::istringstream iss(str);
+		while (std::getline(iss, number, ','))
+			row.push_back(number);
 
-			i++;
-		}
+		imu_data[0][i] = stof(row[0]); // t
+		imu_data[1][i] = stof(row[1]); // aX
+		imu_data[2][i] = stof(row[2]); // aY
+		imu_data[3][i] = stof(row[3]); // aZ
+		imu_data[4][i] = stof(row[4]); // gX
+		imu_data[5][i] = stof(row[5]); // gY
+		imu_data[6][i] = stof(row[6]); // gZ
 
-		return true;
-	} else {
-		return false; // file not found
+		i++;
 	}
 }
 
 
-static void check_array_approx(const double computed[], const double expected[]) {
-	for (int i = 0; i < W_SIZE; i++)
-		CHECK(computed[i] == Approx(expected[i]).margin(0.000001));
+static float read_expected_from_csv(float features[], const std::string filename) {
+	float timestamp_expected;
+	std::string str, number;
+	std::vector<std::string> row, filtered;
+
+	/* There are more stats than used in file imported:
+	 *  - 1 timestamp
+	 *  - 68 statistical features
+	 * 
+	 * So we need to specify which stats will be copied in features. This 
+	 * vector is reversed because is more efficient to remove the last 
+	 * element of a vector.
+	 */
+	std::vector<int> valid_index {58, 57, 56, 55, 54, 53, 52, 51, 50, 49, 
+				      48, 47, 46, 45, 44, 43, 42, 41, 37, 36, 
+				      35, 24, 23, 22, 21, 20, 19, 18, 17, 16, 
+				      15, 14, 13, 12, 11, 10, 9, 8, 7, 3, 2, 1, 0};
+
+	std::ifstream statsfile("./test/data/" + filename);
+	if (!statsfile.is_open())
+		std::exit(ENOENT);
+
+	// skip the CSV header
+	std::getline(statsfile, str);
+
+	// read data line
+	std::getline(statsfile, str);
+	std::istringstream iss(str);
+	int i = 0;
+	while (std::getline(iss, number, ',')) {
+		if (i == valid_index.back()) {
+			row.push_back(number);
+			valid_index.pop_back();
+		}
+
+		i++;
+	}
+
+	timestamp_expected = stof(row[0]);
+	for (int j = 1; j < feats_count; j++) {
+		features[j-1] = stof(row[j]);
+	}
+
+	return timestamp_expected;
 }
 
 
@@ -269,34 +310,40 @@ static char movement_int_to_char(int i) {
 
 
 
-// Tests -------------------------------
+// Tests -----------------------------------------------------------------------
 
-TEST_CASE("reading window", "[catch_helper]") {
+TEST_CASE("reading first window from event27.csv", "[catch_helper]") {
 	double imu_data[7][W_SIZE]; // w_size = 70
 
-	SECTION("from non-existent file") {
-		REQUIRE(!read_1st_window_from_csv(imu_data, "null"));
-	}
-	SECTION("first window from event27.csv") {
-		CHECK(read_1st_window_from_csv(imu_data, "event27.csv"));
+	read_1st_window_from_csv(imu_data, "event27.csv");
 
-		// values copied directly from event27.csv
-		constexpr double  t[W_SIZE] = {113159.0, 113160.0, 113161.0, 113162.0, 113163.0, 113164.0, 113165.0, 113166.0, 113167.0, 113168.0, 113169.0, 113170.0, 113171.0, 113172.0, 113173.0, 113174.0, 113175.0, 113176.0, 113177.0, 113178.0, 113179.0, 113180.0, 113181.0, 113182.0, 113183.0, 113184.0, 113185.0, 113186.0, 113187.0, 113188.0, 113189.0, 113190.0, 113191.0, 113192.0, 113193.0, 113194.0, 113195.0, 113196.0, 113197.0, 113198.0, 113199.0, 113200.0, 113201.0, 113202.0, 113203.0, 113204.0, 113205.0, 113206.0, 113207.0, 113208.0, 113209.0, 113210.0, 113211.0, 113212.0, 113213.0, 113214.0, 113215.0, 113216.0, 113217.0, 113218.0, 113219.0, 113220.0, 113221.0, 113222.0, 113223.0, 113224.0, 113225.0, 113226.0, 113227.0, 113228.0};
-		constexpr double aX[W_SIZE] = {-0.041, -0.043, -0.042, -0.047, -0.052, -0.059, -0.068, -0.069, -0.062, -0.055, -0.047, -0.041, -0.038, -0.037, -0.039, -0.041, -0.037, -0.034, -0.035, -0.036, -0.041, -0.044, -0.045, -0.049, -0.047, -0.041, -0.033, -0.028, -0.027, -0.030, -0.033, -0.035, -0.038, -0.040, -0.040, -0.040, -0.040, -0.043, -0.048, -0.051, -0.053, -0.050, -0.046, -0.042, -0.039, -0.039, -0.042, -0.046, -0.052, -0.051, -0.048, -0.042, -0.033, -0.029, -0.030, -0.034, -0.034, -0.034, -0.037, -0.038, -0.036, -0.038, -0.040, -0.040, -0.045, -0.052, -0.055, -0.052, -0.046, -0.041};
-		constexpr double aY[W_SIZE] = {-0.551, -0.563, -0.564, -0.560, -0.558, -0.556, -0.554, -0.551, -0.546, -0.542, -0.540, -0.538, -0.537, -0.541, -0.547, -0.549, -0.552, -0.548, -0.547, -0.548, -0.548, -0.548, -0.544, -0.543, -0.543, -0.542, -0.545, -0.548, -0.549, -0.551, -0.555, -0.556, -0.553, -0.545, -0.542, -0.545, -0.549, -0.550, -0.552, -0.549, -0.546, -0.543, -0.546, -0.553, -0.561, -0.561, -0.556, -0.553, -0.555, -0.556, -0.554, -0.552, -0.549, -0.546, -0.544, -0.542, -0.545, -0.552, -0.561, -0.573, -0.580, -0.575, -0.568, -0.559, -0.553, -0.555, -0.560, -0.570, -0.572, -0.570};
-		constexpr double aZ[W_SIZE] = {-0.857, -0.854, -0.850, -0.847, -0.847, -0.848, -0.847, -0.847, -0.844, -0.840, -0.840, -0.844, -0.846, -0.845, -0.845, -0.843, -0.841, -0.841, -0.840, -0.837, -0.839, -0.844, -0.844, -0.847, -0.852, -0.855, -0.855, -0.852, -0.849, -0.851, -0.851, -0.850, -0.844, -0.842, -0.840, -0.840, -0.841, -0.842, -0.849, -0.851, -0.854, -0.853, -0.848, -0.844, -0.840, -0.840, -0.841, -0.845, -0.850, -0.851, -0.849, -0.843, -0.840, -0.840, -0.841, -0.844, -0.842, -0.836, -0.835, -0.839, -0.843, -0.847, -0.843, -0.842, -0.839, -0.841, -0.841, -0.841, -0.842, -0.838};
-		constexpr double gX[W_SIZE] = {-0.549, -0.122, -0.671, -0.854, -0.854, -1.465, -1.953, -2.380, -2.869, -2.869, -2.625, -2.502, -2.625, -2.502, -2.380, -2.625, -2.563, -2.563, -2.502, -1.953, -1.465, -1.282, -0.854, -0.854, -0.610, -0.183, -0.122, -0.061, -0.427, -0.732, -0.854, -1.526, -2.136, -2.563, -2.441, -1.770, -1.343, -1.099, -0.732, -0.671, -1.221, -1.465, -1.587, -1.892, -1.770, -1.709, -1.953, -2.014, -1.953, -1.587, -1.587, -1.221, -1.404, -1.465, -1.770, -2.014, -2.075, -1.770, -1.892, -1.831, -1.709, -2.075, -1.953, -1.770, -1.465, -0.916, -0.916, -1.221, -1.831, -2.625};
-		constexpr double gY[W_SIZE] = {-2.136, -2.136, -1.709, -1.343, -0.183, 0.977, 1.770, 1.953, 1.770, 1.404, 1.099, 0.732, 0.549, 0.610, 0.793, 1.160, 1.221, 0.854, 0.427, -0.122, -0.488, -0.427, 0.061, 0.610, 1.099, 1.465, 1.343, 0.916, 0.366, -0.061, -0.061, 0.305, 1.038, 1.404, 1.343, 1.160, 1.221, 0.732, 0.122, -0.183, -0.122, 0.244, 0.305, 0.244, 0.122, -0.061, 0.000, 0.122, 0.305, 0.854, 1.648, 1.709, 0.793, -0.122, -0.854, -0.977, -0.671, -0.244, 0.366, 0.549, 0.305, 0.122, 0.305, 0.488, 0.427, 0.183, 0.427, 0.977, 1.160, 1.282};
-		constexpr double gZ[W_SIZE] = {0.000, -0.122, -0.122, -0.183, -0.183, -0.061, 0.366, 0.366, 0.061, 0.061, -0.183, -0.244, -0.061, 0.061, 0.427, 0.549, 0.671, 0.854, 0.854, 0.732, 0.549, 0.244, 0.061, 0.244, 0.061, 0.000, -0.061, -0.305, -0.427, -0.183, -0.122, -0.305, -0.671, -1.160, -0.977, -0.732, -0.854, -1.038, -1.343, -1.404, -1.099, -0.977, -0.977, -1.343, -1.587, -1.404, -1.099, -0.732, -0.610, -0.793, -0.916, -1.221, -1.465, -1.770, -1.953, -2.258, -2.625, -2.869, -2.991, -3.052, -2.686, -2.502, -2.319, -1.892, -1.648, -1.465, -1.526, -1.282, -1.221, -1.099};
+	// values copied directly from event27.csv
+	constexpr double  t[W_SIZE] = {113159.0, 113160.0, 113161.0, 113162.0, 113163.0, 113164.0, 113165.0, 113166.0, 113167.0, 113168.0, 113169.0, 113170.0, 113171.0, 113172.0, 113173.0, 113174.0, 113175.0, 113176.0, 113177.0, 113178.0, 113179.0, 113180.0, 113181.0, 113182.0, 113183.0, 113184.0, 113185.0, 113186.0, 113187.0, 113188.0, 113189.0, 113190.0, 113191.0, 113192.0, 113193.0, 113194.0, 113195.0, 113196.0, 113197.0, 113198.0, 113199.0, 113200.0, 113201.0, 113202.0, 113203.0, 113204.0, 113205.0, 113206.0, 113207.0, 113208.0, 113209.0, 113210.0, 113211.0, 113212.0, 113213.0, 113214.0, 113215.0, 113216.0, 113217.0, 113218.0, 113219.0, 113220.0, 113221.0, 113222.0, 113223.0, 113224.0, 113225.0, 113226.0, 113227.0, 113228.0};
+	constexpr double aX[W_SIZE] = {-0.041, -0.043, -0.042, -0.047, -0.052, -0.059, -0.068, -0.069, -0.062, -0.055, -0.047, -0.041, -0.038, -0.037, -0.039, -0.041, -0.037, -0.034, -0.035, -0.036, -0.041, -0.044, -0.045, -0.049, -0.047, -0.041, -0.033, -0.028, -0.027, -0.030, -0.033, -0.035, -0.038, -0.040, -0.040, -0.040, -0.040, -0.043, -0.048, -0.051, -0.053, -0.050, -0.046, -0.042, -0.039, -0.039, -0.042, -0.046, -0.052, -0.051, -0.048, -0.042, -0.033, -0.029, -0.030, -0.034, -0.034, -0.034, -0.037, -0.038, -0.036, -0.038, -0.040, -0.040, -0.045, -0.052, -0.055, -0.052, -0.046, -0.041};
+	constexpr double aY[W_SIZE] = {-0.551, -0.563, -0.564, -0.560, -0.558, -0.556, -0.554, -0.551, -0.546, -0.542, -0.540, -0.538, -0.537, -0.541, -0.547, -0.549, -0.552, -0.548, -0.547, -0.548, -0.548, -0.548, -0.544, -0.543, -0.543, -0.542, -0.545, -0.548, -0.549, -0.551, -0.555, -0.556, -0.553, -0.545, -0.542, -0.545, -0.549, -0.550, -0.552, -0.549, -0.546, -0.543, -0.546, -0.553, -0.561, -0.561, -0.556, -0.553, -0.555, -0.556, -0.554, -0.552, -0.549, -0.546, -0.544, -0.542, -0.545, -0.552, -0.561, -0.573, -0.580, -0.575, -0.568, -0.559, -0.553, -0.555, -0.560, -0.570, -0.572, -0.570};
+	constexpr double aZ[W_SIZE] = {-0.857, -0.854, -0.850, -0.847, -0.847, -0.848, -0.847, -0.847, -0.844, -0.840, -0.840, -0.844, -0.846, -0.845, -0.845, -0.843, -0.841, -0.841, -0.840, -0.837, -0.839, -0.844, -0.844, -0.847, -0.852, -0.855, -0.855, -0.852, -0.849, -0.851, -0.851, -0.850, -0.844, -0.842, -0.840, -0.840, -0.841, -0.842, -0.849, -0.851, -0.854, -0.853, -0.848, -0.844, -0.840, -0.840, -0.841, -0.845, -0.850, -0.851, -0.849, -0.843, -0.840, -0.840, -0.841, -0.844, -0.842, -0.836, -0.835, -0.839, -0.843, -0.847, -0.843, -0.842, -0.839, -0.841, -0.841, -0.841, -0.842, -0.838};
+	constexpr double gX[W_SIZE] = {-0.549, -0.122, -0.671, -0.854, -0.854, -1.465, -1.953, -2.380, -2.869, -2.869, -2.625, -2.502, -2.625, -2.502, -2.380, -2.625, -2.563, -2.563, -2.502, -1.953, -1.465, -1.282, -0.854, -0.854, -0.610, -0.183, -0.122, -0.061, -0.427, -0.732, -0.854, -1.526, -2.136, -2.563, -2.441, -1.770, -1.343, -1.099, -0.732, -0.671, -1.221, -1.465, -1.587, -1.892, -1.770, -1.709, -1.953, -2.014, -1.953, -1.587, -1.587, -1.221, -1.404, -1.465, -1.770, -2.014, -2.075, -1.770, -1.892, -1.831, -1.709, -2.075, -1.953, -1.770, -1.465, -0.916, -0.916, -1.221, -1.831, -2.625};
+	constexpr double gY[W_SIZE] = {-2.136, -2.136, -1.709, -1.343, -0.183, 0.977, 1.770, 1.953, 1.770, 1.404, 1.099, 0.732, 0.549, 0.610, 0.793, 1.160, 1.221, 0.854, 0.427, -0.122, -0.488, -0.427, 0.061, 0.610, 1.099, 1.465, 1.343, 0.916, 0.366, -0.061, -0.061, 0.305, 1.038, 1.404, 1.343, 1.160, 1.221, 0.732, 0.122, -0.183, -0.122, 0.244, 0.305, 0.244, 0.122, -0.061, 0.000, 0.122, 0.305, 0.854, 1.648, 1.709, 0.793, -0.122, -0.854, -0.977, -0.671, -0.244, 0.366, 0.549, 0.305, 0.122, 0.305, 0.488, 0.427, 0.183, 0.427, 0.977, 1.160, 1.282};
+	constexpr double gZ[W_SIZE] = {0.000, -0.122, -0.122, -0.183, -0.183, -0.061, 0.366, 0.366, 0.061, 0.061, -0.183, -0.244, -0.061, 0.061, 0.427, 0.549, 0.671, 0.854, 0.854, 0.732, 0.549, 0.244, 0.061, 0.244, 0.061, 0.000, -0.061, -0.305, -0.427, -0.183, -0.122, -0.305, -0.671, -1.160, -0.977, -0.732, -0.854, -1.038, -1.343, -1.404, -1.099, -0.977, -0.977, -1.343, -1.587, -1.404, -1.099, -0.732, -0.610, -0.793, -0.916, -1.221, -1.465, -1.770, -1.953, -2.258, -2.625, -2.869, -2.991, -3.052, -2.686, -2.502, -2.319, -1.892, -1.648, -1.465, -1.526, -1.282, -1.221, -1.099};
 
-		check_array_approx(imu_data[0], t );
-		check_array_approx(imu_data[1], aX);
-		check_array_approx(imu_data[2], aY);
-		check_array_approx(imu_data[3], aZ);
-		check_array_approx(imu_data[4], gX);
-		check_array_approx(imu_data[5], gY);
-		check_array_approx(imu_data[6], gZ);
-	}
-
+	check_array_approx(imu_data[0], t , W_SIZE);
+	check_array_approx(imu_data[1], aX, W_SIZE);
+	check_array_approx(imu_data[2], aY, W_SIZE);
+	check_array_approx(imu_data[3], aZ, W_SIZE);
+	check_array_approx(imu_data[4], gX, W_SIZE);
+	check_array_approx(imu_data[5], gY, W_SIZE);
+	check_array_approx(imu_data[6], gZ, W_SIZE);
 }
 
+
+TEST_CASE("reading features from stats_event27.csv", "[catch_helper]") {
+	float timestamp;
+	float features[feats_count-1];
+	constexpr float expected_f[feats_count-1] = {-0.042571428571429, -0.55227142857143, -0.84475714285714, 0.0085916428307173, 0.0091463051534108, 0.0050665167359398, 0.000073816326530616, 0.000083654897959308, 0.000025669591835558, -0.069, -0.580, -0.857, -0.027, -0.537, -0.835, 0.8826789660749461, 0.5634860004350299, -0.6289091800652464, -0.8224259442845706, -0.9375635402876767, -0.45971082883459685, -1.5973142857143, 0.42201428571429, -0.77087142857143, 0.7256668173452, 0.85610552575281, 0.9823307403667, 0.52659232979592, 0.73291667122449, 0.96497368346939, -2.869, -2.136, -3.052, -0.061, 1.953, 0.854, -0.7490513065291151, 1.0112479704644448, -0.47231439220866234, 0.251614250886062, -0.8285377961969534, -0.4854193239006291};
+	constexpr float expected_t = 113193.5;
+
+	timestamp = read_expected_from_csv(features, "stats_event27.csv");
+
+	CHECK(timestamp == Approx(expected_t).margin(0.0000001));
+	check_array_approx(features, expected_f, feats_count-1);
+}
