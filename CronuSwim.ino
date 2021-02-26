@@ -10,6 +10,9 @@
 char status;
 bool push_button;
 
+std::vector<movement> windows;
+std::vector<double> timestamps;
+
 
 
 void setup() {
@@ -26,9 +29,6 @@ void setup() {
 
 
 void loop() {
-	static std::vector<movement> windows;
-	static std::vector<double> timestamps;
-
 	read_button_input();
 
 	switch (status) {
@@ -73,7 +73,6 @@ void loop() {
 }
 
 
-
 void read_button_input() {
 	String in_data = "";
 
@@ -116,4 +115,3 @@ void change_status_to(char new_status, String serial_message) {
 	status = new_status;
 	Serial.println(serial_message);
 }
-
