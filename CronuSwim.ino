@@ -24,7 +24,7 @@ void setup() {
 		while (1);
 	}
 
-	change_status_to('W', "Waiting for reading signal:");
+	change_status_to('W');
 }
 
 
@@ -32,23 +32,23 @@ void loop() {
 	read_button_input();
 
 	switch (status) {
-	case 'W':
+	case 'W': 	// Waiting
 		if (push_button)
-			change_status_to('R', "Reading IMU data ...");
+			change_status_to('R');
 
 		break;
-	case 'R': {
+	case 'R': {	// Reading
 		double imu_data[7][W_SIZE];
 
 		read_imu_data(imu_data);
 		process_window(imu_data, windows, timestamps);
 
 		if (push_button)
-			change_status_to('P', "Processing data ...");
+			change_status_to('P');
 
 		break; }
-	case 'P': {
-		float estimate = estimate_time(windows, timestamps);
+	case 'P': {	// Processing
+		const float estimate = estimate_time(windows, timestamps);
 
 		if (estimate >= 0.0) {
 			Serial.print("Time inferred: "); Serial.println(estimate);
@@ -62,7 +62,7 @@ void loop() {
 
 		windows.clear();
 		timestamps.clear();
-		change_status_to('W', "Waiting for reading signal:");
+		change_status_to('W');
 
 		break; }
 	default:
@@ -72,7 +72,7 @@ void loop() {
 	}
 }
 
-
+// TODO: try using static in these functions when the software is stable
 void read_button_input() {
 	String in_data = "";
 
@@ -110,8 +110,15 @@ void read_imu_data(double imu_data[7][W_SIZE]) {
 }
 
 
-void change_status_to(char new_status, String serial_message) {
+void change_status_to(const char new_status) {
 	push_button = false;
 	status = new_status;
-	Serial.println(serial_message);
+
+	if (new_status == 'W') {
+		Serial.println("Waiting for reading signal:");
+	} else if (new_status == 'R') {
+		Serial.println("Reading data ...");
+	} else if (new_status == 'P') {
+		Serial.println("Processing data ...");
+	}
 }
