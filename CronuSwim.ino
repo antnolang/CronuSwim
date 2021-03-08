@@ -91,8 +91,9 @@ void read_button_input() {
 void read_imu_data(double imu_data[7][W_SIZE]) {
 	double t;
 	float aX, aY, aZ, gX, gY, gZ;
+	int i = 0;
 
-	for (int i = 0; i < W_SIZE; i++) {
+	while (i < W_SIZE) {
 		if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {		
 			t = millis() / 1000.0; // timestamp in seconds
 			IMU.readAcceleration(aX, aY, aZ);
@@ -105,6 +106,8 @@ void read_imu_data(double imu_data[7][W_SIZE]) {
 			imu_data[4][i] = (double)gX;
 			imu_data[5][i] = (double)gY;
 			imu_data[6][i] = (double)gZ;
+
+			i++;
 		}
 	}
 }
