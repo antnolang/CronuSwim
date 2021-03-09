@@ -22,7 +22,7 @@ elif [[ $describe =~ ^([0-9].[0-9].[0-9])-([0-9])-[a-z0-9]+$ ]]; then
 	
 	if [[ $last_commits == *"[hdw]"* ]] || [[ $last_commits == *"[ml]"* ]]; then
 		next_version="$NEXT_MAJOR.0.0"
-	elif [[ $last_commits == *"[feat]"* ]]; then
+	elif [[ $last_commits == *"[feat]"* ]] || [[ $last_commits == *"[training]"* ]]; then
 		next_version="$MAJOR.$NEXT_MINOR.0"
 	else
 		next_version="$MAJOR.$MINOR.$NEXT_PATCH"
