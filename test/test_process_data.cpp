@@ -9,8 +9,11 @@
 #include "stats.hpp"
 
 
-constexpr int feats_sensor_count = 21;
-constexpr int feats_count = (feats_sensor_count * 2) + 1;
+constexpr int feats_accel_count = 17;
+constexpr int feats_gyros_count = 18;
+constexpr int feats_count = 1 + feats_accel_count + feats_gyros_count;
+constexpr int event_file_count = 70;
+constexpr int real_event_file_count = 30;
 
 
 // Ancillary functions
@@ -19,6 +22,14 @@ static void read_1st_window_from_csv(
 );
 static float read_expected_from_csv(float features[], const std::string filename);
 static char movement_int_to_char(int i);
+static void read_data_from_csv(
+    std::vector<movement> &windows, std::vector<double> &timestamps, 
+    const std::string filename
+);
+static bool read_window_from_file(
+    double imu_data[7][W_SIZE], std::ifstream &eventfile
+);
+static float read_duration_from_csv(const std::string filename);
 
 template <typename T>
 static constexpr void check_array_approx(
@@ -29,7 +40,39 @@ static constexpr void check_array_approx(
 }
 
 
-/* ==============================  MAIN TESTS  ============================== */
+/* ================================ USE CASES ================================*/
+
+// TODO: how to run use_cases tests after process_data unit testing after stats 
+//       unit testing? Order tests so that dependencies are tested before the 
+//	 other tests
+TEST_CASE("process_data for every real_event file: expected <= 5 percentage of "
+	  "failures with a margin of 1 sec", "[use_case]"
+) {
+	int fail_count = 0;
+
+	for (int i = 1; i <= real_event_file_count; i++) {
+		std::vector<movement> windows;
+		std::vector<double> timestamps;
+		const std::string filename = "real_event" + std::to_string(i) + 
+					     ".csv";
+
+		read_data_from_csv(windows, timestamps, filename);
+		const float estimation = estimate_time(windows, timestamps);
+		const float duration = read_duration_from_csv(filename);
+
+		if (estimation != Approx(duration).margin(0.475)) {
+			WARN("failed estimation of file " << filename << ": " 
+			     << estimation << " == " << duration);
+
+			fail_count++;
+		}
+	}
+
+	REQUIRE((float)fail_count / (float)real_event_file_count <= 0.05f);
+}
+
+
+/* =============================  UNIT TESTING  ============================= */
 
 
 TEST_CASE("extract_stats_from_sensor using first window of event27.csv", 
@@ -37,23 +80,24 @@ TEST_CASE("extract_stats_from_sensor using first window of event27.csv",
 ) {
 	constexpr float me = 0.0000001;
 	double imu_data[7][W_SIZE]; // w_size = 70
-	float features[feats_sensor_count];
-	float all_expected[feats_count-1];
 	sensor_3D sensor = GENERATE(ACCEL, GYROS);
+	const int length = sensor == ACCEL ? feats_accel_count : feats_gyros_count;
+	float features[length];
+	float all_expected[feats_count-1];
 	
 	read_1st_window_from_csv(imu_data, "event27.csv");
 	read_expected_from_csv(all_expected, "stats_event27.csv");
 
 	// all_expected[feats_count-1]:
-	//     [0, feats_sensor_count)   --> ACCEL
-	//     [feats_sensor_count, end) --> GYROS
-	const int i_offset = sensor == ACCEL ? 0 : feats_sensor_count;
+	//     [0, feats_accel_count)   --> ACCEL
+	//     [feats_accel_count, end) --> GYROS
+	const int i_offset = sensor == ACCEL ? 0 : feats_accel_count;
 
 	const std::string sensor_text = sensor == ACCEL ? "ACCEL" : "GYROS";
 	DYNAMIC_SECTION("using the following sensor: " << sensor_text) {
 		extract_stats_from_sensor(features, sensor, imu_data);		
 
-		for (int i = 0; i < feats_sensor_count; i++) {
+		for (int i = 0; i < length; i++) {
 			CHECK(features[i] == Approx(all_expected[i_offset + i]).margin(me));
 		}
 	}
@@ -171,7 +215,7 @@ TEST_CASE("estimate_time", "[process_data]") {
 }
 
 
-TEST_CASE("process_window for 60 files per phases: expected success rate higher " 
+TEST_CASE("process_window for 70 files per phases: expected success rate higher " 
 	  "than 0.95", "[process_data]"
 ) {
 	int success_count = 0;
@@ -179,7 +223,7 @@ TEST_CASE("process_window for 60 files per phases: expected success rate higher 
 	std::vector<double> timestamps;
 	constexpr float me = 0.0000001;
 	constexpr int phases_count = 3;
-	constexpr int files_per_phases_count = 60;
+	constexpr int files_per_phases_count = event_file_count;
 
 	for (int i = 0; i < phases_count; i++) { // Start, other, finish
 		for (int j = 1; j <= files_per_phases_count; j++) {
@@ -217,10 +261,63 @@ TEST_CASE("process_window for 60 files per phases: expected success rate higher 
 
 // Functions -------------------------------------------------------------------
 
-static void read_1st_window_from_csv(
-    double imu_data[7][W_SIZE], const std::string filename
+static bool read_window_from_file(
+    double imu_data[7][W_SIZE], std::ifstream &eventfile
 ) {
+	int i = 0;
 	std::string str, number;
+	std::vector<std::string> row;
+
+	while (i < W_SIZE && std::getline(eventfile, str)) {
+		row.clear();
+		std::istringstream iss(str);
+
+		while (std::getline(iss, number, ','))
+			row.push_back(number);
+
+		imu_data[0][i] = stod(row[0]); // t
+		imu_data[1][i] = stod(row[1]); // aX
+		imu_data[2][i] = stod(row[2]); // aY
+		imu_data[3][i] = stod(row[3]); // aZ
+		imu_data[4][i] = stod(row[4]); // gX
+		imu_data[5][i] = stod(row[5]); // gY
+		imu_data[6][i] = stod(row[6]); // gZ
+
+		i++;
+	}
+
+	return i == W_SIZE;
+}
+
+
+static void read_data_from_csv(
+    std::vector<movement> &windows, std::vector<double> &timestamps, 
+    const std::string filename
+) {
+	std::string str;
+	std::vector<std::string> row;
+	int skip_factor = 4; // TODO: document this factor
+
+	std::ifstream eventfile("./test/data/" + filename);
+	if (!eventfile.is_open())
+		std::exit(ENOENT);
+
+	std::getline(eventfile, str); // skip the CSV header
+	double imu_data[7][W_SIZE];
+	while (read_window_from_file(imu_data, eventfile)) {
+		process_window(imu_data, windows, timestamps);
+
+		for (int i = 0; i < skip_factor; i++) {
+			std::getline(eventfile, str); // skipping 4 lines after each window
+		}
+	}
+}
+
+
+static float read_duration_from_csv(const std::string filename) {
+	float duration;
+	std::string str, number;
+	std::vector<double> start_end;
 	std::vector<std::string> row;
 
 	std::ifstream eventfile("./test/data/" + filename);
@@ -228,43 +325,40 @@ static void read_1st_window_from_csv(
 		std::exit(ENOENT);
 
 	std::getline(eventfile, str); // skip the CSV header
-	int i = 0;
-	while (std::getline(eventfile, str) && i < W_SIZE) {
+	while (std::getline(eventfile, str)) {
 		row.clear();
 		std::istringstream iss(str);
 		while (std::getline(iss, number, ','))
 			row.push_back(number);
 
-		imu_data[0][i] = stof(row[0]); // t
-		imu_data[1][i] = stof(row[1]); // aX
-		imu_data[2][i] = stof(row[2]); // aY
-		imu_data[3][i] = stof(row[3]); // aZ
-		imu_data[4][i] = stof(row[4]); // gX
-		imu_data[5][i] = stof(row[5]); // gY
-		imu_data[6][i] = stof(row[6]); // gZ
-
-		i++;
+		if (row[0].find("+") != std::string::npos)
+			start_end.push_back(stod(row[0]));
 	}
+
+	duration = start_end.size() == 2 ? start_end[1]-start_end[0] : -1.0;
+
+	return duration;
+}
+
+
+static void read_1st_window_from_csv(
+    double imu_data[7][W_SIZE], const std::string filename
+) {
+	std::string str;
+	std::vector<std::string> row;
+
+	std::ifstream eventfile("./test/data/" + filename);
+	if (!eventfile.is_open())
+		std::exit(ENOENT);
+
+	std::getline(eventfile, str); // skip the CSV header
+	read_window_from_file(imu_data, eventfile);
 }
 
 
 static float read_expected_from_csv(float features[], const std::string filename) {
 	float timestamp_expected;
 	std::string str, number;
-	std::vector<std::string> row, filtered;
-
-	/* There are more stats than used in file imported:
-	 *  - 1 timestamp
-	 *  - 68 statistical features
-	 * 
-	 * So we need to specify which stats will be copied in features. This 
-	 * vector is reversed because is more efficient to remove the last 
-	 * element of a vector.
-	 */
-	std::vector<int> valid_index {58, 57, 56, 55, 54, 53, 52, 51, 50, 49, 
-				      48, 47, 46, 45, 44, 43, 42, 41, 37, 36, 
-				      35, 24, 23, 22, 21, 20, 19, 18, 17, 16, 
-				      15, 14, 13, 12, 11, 10, 9, 8, 7, 3, 2, 1, 0};
 
 	std::ifstream statsfile("./test/data/" + filename);
 	if (!statsfile.is_open())
@@ -278,17 +372,12 @@ static float read_expected_from_csv(float features[], const std::string filename
 	std::istringstream iss(str);
 	int i = 0;
 	while (std::getline(iss, number, ',')) {
-		if (i == valid_index.back()) {
-			row.push_back(number);
-			valid_index.pop_back();
-		}
+		if (i == 0)
+			timestamp_expected = stof(number);			
+		else
+			features[i-1] = stof(number);
 
 		i++;
-	}
-
-	timestamp_expected = stof(row[0]);
-	for (int j = 1; j < feats_count; j++) {
-		features[j-1] = stof(row[j]);
 	}
 
 	return timestamp_expected;
@@ -311,6 +400,14 @@ static char movement_int_to_char(int i) {
 
 
 // Tests -----------------------------------------------------------------------
+
+
+TEST_CASE("getting duration from event27.csv", "[catch_helper]") {
+	float duration = read_duration_from_csv("event27.csv");
+
+	REQUIRE(duration == Approx(458.0).margin(0.0000001));
+}
+
 
 TEST_CASE("reading first window from event27.csv", "[catch_helper]") {
 	double imu_data[7][W_SIZE]; // w_size = 70
@@ -339,7 +436,7 @@ TEST_CASE("reading first window from event27.csv", "[catch_helper]") {
 TEST_CASE("reading features from stats_event27.csv", "[catch_helper]") {
 	float timestamp;
 	float features[feats_count-1];
-	constexpr float expected_f[feats_count-1] = {-0.042571428571429, -0.55227142857143, -0.84475714285714, 0.0085916428307173, 0.0091463051534108, 0.0050665167359398, 0.000073816326530616, 0.000083654897959308, 0.000025669591835558, -0.069, -0.580, -0.857, -0.027, -0.537, -0.835, 0.8826789660749461, 0.5634860004350299, -0.6289091800652464, -0.8224259442845706, -0.9375635402876767, -0.45971082883459685, -1.5973142857143, 0.42201428571429, -0.77087142857143, 0.7256668173452, 0.85610552575281, 0.9823307403667, 0.52659232979592, 0.73291667122449, 0.96497368346939, -2.869, -2.136, -3.052, -0.061, 1.953, 0.854, -0.7490513065291151, 1.0112479704644448, -0.47231439220866234, 0.251614250886062, -0.8285377961969534, -0.4854193239006291};
+	constexpr float expected_f[feats_count-1] = {-0.0425714286,-0.844757143,-0.551000000,-0.844000000,0.00859164283,0.0000836548980,-0.580000000,-0.857000000,-0.537000000,0.882678966,-0.459710829,-0.848750000,-0.0370000000,-0.841000000,0.0100000000,0.0100000000,0.583270614,-1.59731429,0.422014286,-1.70900000,0.427000000,0.725666817,0.856105526,0.526592330,0.732916671,-2.86900000,-2.13600000,-0.0610000000,0.854000000,-0.472314392,0.251614251,-0.0457500000,-0.961750000,1.12950000,1.35993069};
 	constexpr float expected_t = 113193.5;
 
 	timestamp = read_expected_from_csv(features, "stats_event27.csv");
