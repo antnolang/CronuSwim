@@ -18,12 +18,12 @@ enum sensor_3D { ACCEL = 1, GYROS = 4 };
 
 
 void process_window(
-    const double imu_data[7][W_SIZE], std::vector<movement> &windows, 
+    double imu_data[7][W_SIZE], std::vector<movement> &windows, 
     std::vector<double> &timestamps
 );
-void extract_features(float features[], const double imu_data[7][W_SIZE]);
+void extract_features(float features[], double imu_data[7][W_SIZE]);
 void extract_stats_from_sensor(
-    float * features, const sensor_3D sensor, const double imu_data[7][W_SIZE]
+    float * features, const sensor_3D sensor, double imu_data[7][W_SIZE]
 );
 float estimate_time(
     const std::vector<movement> &windows, const std::vector<double> &timestamps
@@ -31,4 +31,3 @@ float estimate_time(
 
 
 #endif
-
