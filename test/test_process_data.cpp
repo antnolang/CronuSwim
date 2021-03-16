@@ -11,10 +11,10 @@
 
 
 TEST_CASE("extract_stats_from_sensor using first window of event27.csv", 
-	  "[process_data]"
+	  "[process_data][unit_test]"
 ) {
 	constexpr float me = 0.0000001;
-	double imu_data[7][W_SIZE]; // w_size = 70
+	double imu_data[7][W_SIZE];
 	sensor_3D sensor = GENERATE(ACCEL, GYROS);
 	const int length = sensor == ACCEL ? FEATS_ACCEL_COUNT : FEATS_GYROS_COUNT;
 	float features[length];
@@ -39,9 +39,10 @@ TEST_CASE("extract_stats_from_sensor using first window of event27.csv",
 }
 
 
-TEST_CASE("extract_features using first window of event27.csv", "[process_data]") {
+TEST_CASE("extract_features using first window of event27.csv", 
+	  "[process_data][unit_test]") {
 	constexpr float me = 0.0000001;
-	double imu_data[7][W_SIZE]; // w_size = 70
+	double imu_data[7][W_SIZE];
 	float features[FEATS_COUNT];
 	float expected_res[FEATS_COUNT-1];
 
@@ -57,7 +58,7 @@ TEST_CASE("extract_features using first window of event27.csv", "[process_data]"
 }
 
 
-TEST_CASE("estimate_time", "[process_data]") {
+TEST_CASE("estimate_time", "[process_data][unit_test]") {
 	constexpr float me = 0.0000001;
 
 	// timestamps generated randomly from https://onlinenumbertools.com/generate-random-numbers
@@ -151,7 +152,7 @@ TEST_CASE("estimate_time", "[process_data]") {
 
 
 TEST_CASE("process_window for 70 files per phases: expected success rate higher " 
-	  "than 0.95", "[process_data]"
+	  "than 0.95", "[process_data][unit_test]"
 ) {
 	int success_count = 0;
 	std::vector<movement> windows;
