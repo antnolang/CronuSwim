@@ -6,8 +6,6 @@
 static void copy_features(const double * result, float * features, int length);
 
 
-// TODO: make the software easily configurable so that i only have to change 
-//       config.c to use more or less features and not this file too
 // TODO: take adventage of this refactor to make the ancillary method of the 
 //       tests more readable
 // TODO: should these constants be size_t?
