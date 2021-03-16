@@ -9,9 +9,6 @@
 #include "stats.hpp"
 
 
-constexpr int feats_accel_count = 17;
-constexpr int feats_gyros_count = 18;
-constexpr int feats_count = 1 + feats_accel_count + feats_gyros_count;
 constexpr int event_file_count = 70;
 constexpr int real_event_file_count = 30;
 
@@ -81,17 +78,17 @@ TEST_CASE("extract_stats_from_sensor using first window of event27.csv",
 	constexpr float me = 0.0000001;
 	double imu_data[7][W_SIZE]; // w_size = 70
 	sensor_3D sensor = GENERATE(ACCEL, GYROS);
-	const int length = sensor == ACCEL ? feats_accel_count : feats_gyros_count;
+	const int length = sensor == ACCEL ? FEATS_ACCEL_COUNT : FEATS_GYROS_COUNT;
 	float features[length];
-	float all_expected[feats_count-1];
+	float all_expected[FEATS_COUNT-1];
 	
 	read_1st_window_from_csv(imu_data, "event27.csv");
 	read_expected_from_csv(all_expected, "stats_event27.csv");
 
-	// all_expected[feats_count-1]:
-	//     [0, feats_accel_count)   --> ACCEL
-	//     [feats_accel_count, end) --> GYROS
-	const int i_offset = sensor == ACCEL ? 0 : feats_accel_count;
+	// all_expected[FEATS_COUNT-1]:
+	//     [0, FEATS_ACCEL_COUNT)   --> ACCEL
+	//     [FEATS_ACCEL_COUNT, end) --> GYROS
+	const int i_offset = sensor == ACCEL ? 0 : FEATS_ACCEL_COUNT;
 
 	const std::string sensor_text = sensor == ACCEL ? "ACCEL" : "GYROS";
 	DYNAMIC_SECTION("using the following sensor: " << sensor_text) {
@@ -107,8 +104,8 @@ TEST_CASE("extract_stats_from_sensor using first window of event27.csv",
 TEST_CASE("extract_features using first window of event27.csv", "[process_data]") {
 	constexpr float me = 0.0000001;
 	double imu_data[7][W_SIZE]; // w_size = 70
-	float features[feats_count];
-	float expected_res[feats_count-1];
+	float features[FEATS_COUNT];
+	float expected_res[FEATS_COUNT-1];
 
 	read_1st_window_from_csv(imu_data, "event27.csv");
 	const float expected_timestamp = read_expected_from_csv(expected_res, 
@@ -117,7 +114,7 @@ TEST_CASE("extract_features using first window of event27.csv", "[process_data]"
 	extract_features(features, imu_data);
 
 	CHECK(features[0] == Approx(expected_timestamp).margin(me));
-	for (int i = 1; i < feats_count; i++)
+	for (int i = 1; i < FEATS_COUNT; i++)
 		CHECK(features[i] == Approx(expected_res[i-1]).margin(me));
 }
 
@@ -435,12 +432,12 @@ TEST_CASE("reading first window from event27.csv", "[catch_helper]") {
 
 TEST_CASE("reading features from stats_event27.csv", "[catch_helper]") {
 	float timestamp;
-	float features[feats_count-1];
-	constexpr float expected_f[feats_count-1] = {-0.0425714286,-0.844757143,-0.551000000,-0.844000000,0.00859164283,0.0000836548980,-0.580000000,-0.857000000,-0.537000000,0.882678966,-0.459710829,-0.848750000,-0.0370000000,-0.841000000,0.0100000000,0.0100000000,0.583270614,-1.59731429,0.422014286,-1.70900000,0.427000000,0.725666817,0.856105526,0.526592330,0.732916671,-2.86900000,-2.13600000,-0.0610000000,0.854000000,-0.472314392,0.251614251,-0.0457500000,-0.961750000,1.12950000,1.35993069};
+	float features[FEATS_COUNT-1];
+	constexpr float expected_f[FEATS_COUNT-1] = {-0.0425714286,-0.844757143,-0.551000000,-0.844000000,0.00859164283,0.0000836548980,-0.580000000,-0.857000000,-0.537000000,0.882678966,-0.459710829,-0.848750000,-0.0370000000,-0.841000000,0.0100000000,0.0100000000,0.583270614,-1.59731429,0.422014286,-1.70900000,0.427000000,0.725666817,0.856105526,0.526592330,0.732916671,-2.86900000,-2.13600000,-0.0610000000,0.854000000,-0.472314392,0.251614251,-0.0457500000,-0.961750000,1.12950000,1.35993069};
 	constexpr float expected_t = 113193.5;
 
 	timestamp = read_expected_from_csv(features, "stats_event27.csv");
 
 	CHECK(timestamp == Approx(expected_t).margin(0.0000001));
-	check_array_approx(features, expected_f, feats_count-1);
+	check_array_approx(features, expected_f, FEATS_COUNT-1);
 }

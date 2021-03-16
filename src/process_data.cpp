@@ -6,16 +6,11 @@
 static void copy_features(const double * result, float * features, int length);
 
 
-// TODO: make these constants and W_SIZE globals and put them in config.c
 // TODO: make the software easily configurable so that i only have to change 
 //       config.c to use more or less features and not this file too
 // TODO: take adventage of this refactor to make the ancillary method of the 
 //       tests more readable
 // TODO: should these constants be size_t?
-constexpr int feats_accel_count = 17;
-constexpr int feats_gyros_count = 18;
-// average timestamp, accel stats, gyros stats
-constexpr int feats_count = 1 + feats_accel_count + feats_gyros_count;
 
 
 
@@ -23,13 +18,13 @@ void process_window(
     double imu_data[7][W_SIZE], std::vector<movement> &windows, 
     std::vector<double> &timestamps
 ) {
-	float features[feats_count];
+	float features[FEATS_COUNT];
 	movement w_class;
 
 	extract_features(features, imu_data);
 	// classify using features and skipping timestamp
 	w_class = (movement)eml_bayes_predict(&trained_model_model, features + 1, 
-					      feats_count - 1);
+					      FEATS_COUNT - 1);
 
 	windows.push_back(w_class);
 	timestamps.push_back(features[0]);
@@ -37,7 +32,7 @@ void process_window(
 
 
 void extract_features(float features[], double imu_data[7][W_SIZE]) {
-	constexpr int p_offset = feats_accel_count + 1;
+	constexpr int p_offset = FEATS_ACCEL_COUNT + 1;
 
 	features[0] = stats_mean(imu_data[0], W_SIZE);
 	extract_stats_from_sensor(features + 1, ACCEL, imu_data);
@@ -93,12 +88,12 @@ void extract_stats_from_sensor(
 			stats_quantile_from_sorted_data(imu_data[z], W_SIZE, 0.75);
 		const double iqr_x = q3_x - q1_x;
 
-		const double result[feats_accel_count] = {
+		const double result[FEATS_ACCEL_COUNT] = {
 			mean_x,  mean_z,  median_y, median_z, stdev_x, var_y, 
 			min_y,   min_z,   max_y, kurt_x, skew_z, q1_z, q3_x, 
 			q3_z, iqr_x, iqr_y, rms
 		};
-		copy_features(result, features, feats_accel_count);
+		copy_features(result, features, FEATS_ACCEL_COUNT);
 	} else /* GYROS */ {
 		const double stdev_y = stats_sd(var_y);
 		const double kurt_z = 
@@ -111,12 +106,12 @@ void extract_stats_from_sensor(
 		const double median_x = 
 			stats_median_from_sorted_data(imu_data[x], W_SIZE);
 
-		const double result[feats_gyros_count] = {
+		const double result[FEATS_GYROS_COUNT] = {
 			mean_x, mean_y, median_x, median_y, stdev_x, stdev_y, 
 			var_x, var_y, min_x, min_y, max_x, max_z, kurt_z, 
 			skew_x, q1_y, q3_x, iqr_y, rms
 		};
-		copy_features(result, features, feats_gyros_count);
+		copy_features(result, features, FEATS_GYROS_COUNT);
 	}
 }
 

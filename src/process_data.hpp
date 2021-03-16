@@ -2,14 +2,12 @@
 #ifndef _PROCESS_DATA_H_
 #define _PROCESS_DATA_H_
 
-#undef W_SIZE
-#define W_SIZE 70
-
 
 #include <vector>
 #include <cmath>
 
 #include "stats.hpp"
+#include "config.hpp"
 
 
 enum movement { START, OTHER, FINISH };
