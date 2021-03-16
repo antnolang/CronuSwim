@@ -177,7 +177,8 @@ double stats_rms(
 }
 
 
-/*============================= Static functions =============================*/
+/*=========================== ANCILLARY FUNCTIONS ===========================*/
+
 
 static double sum_squares(const double data[], const size_t n) {
 	double sum = 0;
@@ -188,6 +189,7 @@ static double sum_squares(const double data[], const size_t n) {
 
 	return sum;
 }
+
 
 static void my_downheap(double * data, const size_t N, size_t k) {
 	double v = data[k];

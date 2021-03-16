@@ -4,7 +4,6 @@
 #include <string>
 
 #include "catch.hpp"
-#include "config_test.hpp"
 #include "catch_helper.hpp"
 #include "process_data.hpp"
 #include "stats.hpp"

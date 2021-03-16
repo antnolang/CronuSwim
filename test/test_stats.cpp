@@ -3,46 +3,14 @@
 #include "stats.hpp"
 
 
-
 static void stats_check_unsorted(
     const double * data, const int size, const double stats[8]
-) {
-	constexpr double me = 0.0000001;
-	double stats_min, stats_max;
-	const double mean = stats[0], var = stats[1], sd = stats[2], 
-		     kurt = stats[3], skew = stats[4], min = stats[5], 
-		     max = stats[6], rms = stats[7];
-
-	CHECK(stats_mean(data, size) == Approx(mean).margin(me));
-	CHECK(stats_variance(data, size, mean) == Approx(var).margin(me));
-	CHECK(stats_sd(var) == Approx(sd).margin(me));
-	CHECK(stats_kurtosis(data, size, mean, sd) == Approx(kurt).margin(me));
-	CHECK(stats_skew(data, size, mean, sd) == Approx(skew).margin(me));
-	CHECK(stats_rms(data, data, data, size) == Approx(rms).margin(me));
-
-	stats_min_max(stats_min, stats_max, data, size);
-	CHECK(stats_min == Approx(min).margin(me));
-	CHECK(stats_max == Approx(max).margin(me));
-}
-
-
+);
 static void stats_check_sorted(
     double data[], const double sorted_data[], const int size, 
     const double stats[3]
-) {
-	constexpr double me = 0.0000001;
-	const double median = stats[0], q1 = stats[1], q3 = stats[2];
+);
 
-	stats_sort(data, size);
-
-	for (int i = 0; i < size; i++) {
-		CHECK(data[i] == Approx(sorted_data[i]));
-	}
-	
-	CHECK(stats_median_from_sorted_data(data, size) == Approx(median).margin(me));
-	CHECK(stats_quantile_from_sorted_data(data, size, 0.25) == Approx(q1).margin(me));
-	CHECK(stats_quantile_from_sorted_data(data, size, 0.75) == Approx(q3).margin(me));
-}
 
 
 TEST_CASE("stats from subset of data without sorting", "[stats]") {
@@ -101,3 +69,46 @@ TEST_CASE("stats from subset of sorted data", "[stats]") {
 	}
 }
 
+
+/* =========================  ANCILLARY FUNCTIONS  ========================= */
+
+
+static void stats_check_unsorted(
+    const double * data, const int size, const double stats[8]
+) {
+	constexpr double me = 0.0000001;
+	double stats_min, stats_max;
+	const double mean = stats[0], var = stats[1], sd = stats[2], 
+		     kurt = stats[3], skew = stats[4], min = stats[5], 
+		     max = stats[6], rms = stats[7];
+
+	CHECK(stats_mean(data, size) == Approx(mean).margin(me));
+	CHECK(stats_variance(data, size, mean) == Approx(var).margin(me));
+	CHECK(stats_sd(var) == Approx(sd).margin(me));
+	CHECK(stats_kurtosis(data, size, mean, sd) == Approx(kurt).margin(me));
+	CHECK(stats_skew(data, size, mean, sd) == Approx(skew).margin(me));
+	CHECK(stats_rms(data, data, data, size) == Approx(rms).margin(me));
+
+	stats_min_max(stats_min, stats_max, data, size);
+	CHECK(stats_min == Approx(min).margin(me));
+	CHECK(stats_max == Approx(max).margin(me));
+}
+
+
+static void stats_check_sorted(
+    double data[], const double sorted_data[], const int size, 
+    const double stats[3]
+) {
+	constexpr double me = 0.0000001;
+	const double median = stats[0], q1 = stats[1], q3 = stats[2];
+
+	stats_sort(data, size);
+
+	for (int i = 0; i < size; i++) {
+		CHECK(data[i] == Approx(sorted_data[i]));
+	}
+	
+	CHECK(stats_median_from_sorted_data(data, size) == Approx(median).margin(me));
+	CHECK(stats_quantile_from_sorted_data(data, size, 0.25) == Approx(q1).margin(me));
+	CHECK(stats_quantile_from_sorted_data(data, size, 0.75) == Approx(q3).margin(me));
+}

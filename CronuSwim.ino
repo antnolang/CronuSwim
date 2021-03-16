@@ -72,7 +72,7 @@ void loop() {
 	}
 }
 
-// TODO: try using static in these functions when the software is stable
+
 void read_button_input() {
 	String in_data = "";
 

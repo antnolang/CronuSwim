@@ -2,6 +2,7 @@
 #include "catch_helper.hpp"
 
 
+
 bool read_window_from_file(
     double imu_data[7][W_SIZE], std::ifstream &eventfile
 ) {

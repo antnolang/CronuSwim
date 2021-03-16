@@ -3,7 +3,6 @@
 #include <string>
 
 #include "catch.hpp"
-#include "config_test.hpp"
 #include "catch_helper.hpp"
 #include "process_data.hpp"
 
@@ -15,9 +14,6 @@ static void read_data_from_csv(
 
 
 
-// TODO: how to run use_cases tests after process_data unit testing after stats 
-//       unit testing? Order tests so that dependencies are tested before the 
-//	 other tests
 TEST_CASE("process_data for every real_event file: expected <= 5 percentage of "
 	  "failures with a margin of 1 sec", "[use_case]"
 ) {
@@ -54,7 +50,8 @@ static void read_data_from_csv(
 ) {
 	std::string str;
 	std::vector<std::string> row;
-	int skip_factor = 4; // TODO: document this factor
+	// while the software is processing one window, it loses 4 records aprox
+	int skip_factor = 4;
 
 	std::ifstream eventfile("./test/data/" + filename);
 	if (!eventfile.is_open())
@@ -66,7 +63,8 @@ static void read_data_from_csv(
 		process_window(imu_data, windows, timestamps);
 
 		for (int i = 0; i < skip_factor; i++) {
-			std::getline(eventfile, str); // skipping 4 lines after each window
+			std::getline(eventfile, str); 
+			// skipping 4 lines after each window
 		}
 	}
 }

@@ -6,11 +6,6 @@
 static void copy_features(const double * result, float * features, int length);
 
 
-// TODO: take adventage of this refactor to make the ancillary method of the 
-//       tests more readable
-// TODO: should these constants be size_t?
-
-
 
 void process_window(
     double imu_data[7][W_SIZE], std::vector<movement> &windows, 
@@ -174,7 +169,7 @@ float estimate_time(
 }
 
 
-/*============================= Static functions =============================*/
+/*=========================== ANCILLARY FUNCTIONS ===========================*/
 
 
 static void copy_features(const double * result, float * features, int length) {
