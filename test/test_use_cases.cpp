@@ -15,9 +15,10 @@ static void read_data_from_csv(
 
 
 TEST_CASE("process_data for every real_event file: expected <= 5 percentage of "
-	  "failures with a margin of 1 sec", "[use_case]"
+	  "failures with a margin of 0.475 sec", "[use_case]"
 ) {
 	int fail_count = 0;
+	float mae = 0;
 
 	for (int i = 1; i <= REAL_EVENT_FILE_COUNT; i++) {
 		std::vector<movement> windows;
@@ -28,6 +29,7 @@ TEST_CASE("process_data for every real_event file: expected <= 5 percentage of "
 		read_data_from_csv(windows, timestamps, filename);
 		const float estimation = estimate_time(windows, timestamps);
 		const float duration = read_duration_from_csv(filename);
+		mae += std::abs(estimation - duration);
 
 		if (estimation != Approx(duration).margin(0.475)) {
 			WARN("failed estimation of file " << filename << ": " 
@@ -37,6 +39,9 @@ TEST_CASE("process_data for every real_event file: expected <= 5 percentage of "
 		}
 	}
 
+	mae = mae / REAL_EVENT_FILE_COUNT;
+
+	WARN("The mean absolute error is: " << mae);
 	REQUIRE((float)fail_count / (float)REAL_EVENT_FILE_COUNT <= 0.05f);
 }
 
