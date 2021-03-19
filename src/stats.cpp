@@ -156,7 +156,7 @@ double stats_quantile_from_sorted_data(
 		result = sorted_data[lhs];
 	} else {
 		result =   ((1 - delta) * sorted_data[lhs])
-		         + (delta * sorted_data[(lhs + 1)]);
+		         + (delta * sorted_data[lhs + 1]);
 	}
 
 	return result ;
@@ -197,7 +197,7 @@ static void my_downheap(double * data, const size_t N, size_t k) {
 	while (k <= N / 2) {
 		size_t j = 2 * k;
 
-		if (j < N && data[j] < data[(j + 1)])
+		if (j < N && data[j] < data[j + 1])
 			j++;
 
 		if (!(v < data[j]))		/* avoid infinite loop if nan */

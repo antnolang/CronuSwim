@@ -5,8 +5,8 @@
 
 #include "config.hpp"
 
-#define EVENT_FILE_COUNT 70
-#define REAL_EVENT_FILE_COUNT 30
+constexpr int EVENT_FILE_COUNT = 70;
+constexpr int REAL_EVENT_FILE_COUNT = 30;
 
 
 #endif
