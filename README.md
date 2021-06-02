@@ -1,4 +1,4 @@
-# CronuSwim [![Build Status](https://travis-ci.com/antnolang/CronuSwim.svg?branch=master)](https://travis-ci.org/antnolang/CronuSwim) [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=antnolang_CronuSwim&metric=alert_status)](https://sonarcloud.io/dashboard?id=antnolang_CronuSwim)
+# CronuSwim [![Build Status](https://travis-ci.com/antnolang/CronuSwim.svg?branch=master)](https://travis-ci.com/antnolang/CronuSwim) [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=antnolang_CronuSwim&metric=alert_status)](https://sonarcloud.io/dashboard?id=antnolang_CronuSwim)
 
 CronuSwim is an embedded software designed to help swimming enthusiasts to measure their times in the pool very accurately without the help of a coach.
 
